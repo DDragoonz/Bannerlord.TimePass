@@ -81,17 +81,7 @@ namespace TimePass
 
         public override string ToString()
         {
-            float time = 0;
-            if (Campaign.Current != null)
-            {
-                time = CampaignTime.Now.CurrentHourInDay;
-            }
-            else if (Mission.Current.Scene != null)
-            {
-                time = Mission.Current.Scene.TimeOfDay;
-            }
-
-            return "time : " + time
+            return "time : " + GetCurrentTimeOfDay()
                              + "\n skybox_rotation : " + skybox_rotation
                              + "\n sky_brightness : " + sky_brightness
                              + "\n sun_altitude : " + sun_altitude
@@ -105,6 +95,22 @@ namespace TimePass
                              + "\n target_exposure : " + target_exposure
                              + "\n brightpass_threshold : " + brightpass_threshold
                              + "\n fog_ambient_color : " + fog_ambient_color;
+        }
+
+        public static float GetCurrentTimeOfDay()
+        {
+            if (Campaign.Current != null)
+            {
+                return CampaignTime.Now.CurrentHourInDay;
+            }
+
+            if (Mission.Current != null && Mission.Current.Scene != null)
+            {
+                return Mission.Current.Scene.TimeOfDay + (Mission.Current.CurrentTime *
+                    TimePassSettings.Instance.realSecondToWorldSecondRatio / 3600);
+            }
+
+            return 0;
         }
 
         public static TimePassSkyInfo Lerp(TimePassSkyInfo fromSkyInfo, TimePassSkyInfo toSkyInfo, float hourProgress)

@@ -12,7 +12,8 @@ namespace TimePass
             base.OnAfterMissionCreated();
             if (TimePassSettings.Instance.enableDebug)
                 InformationManager.DisplayMessage(
-                    new InformationMessage("Mission Initialize! CurrentTime : " + Mission.Current.Scene.TimeOfDay));
+                    new InformationMessage("Mission Initialize! CurrentTime : " +
+                                           TimePassSkyInfo.GetCurrentTimeOfDay()));
 
             skyTickTime = 0.0f;
             lastTickHour = Campaign.Current == null ? 0 : (int)CampaignTime.Now.CurrentHourInDay;
@@ -26,22 +27,10 @@ namespace TimePass
                     .Scene.IsLoadingFinished())
             {
                 float secondTick = dt * TimePassSettings.Instance.realSecondToWorldSecondRatio;
-                // custom battle
-                if (Campaign.Current == null)
-                {
-                    // only tick mission time
-                    Mission.Current.Scene.TimeOfDay += secondTick / 3600;
-                    Mission.Current.Scene.TimeOfDay %= 24;
-                }
-                else
-                {
-                    // tick campagin time
-                    Traverse.Create(Campaign.Current).Field("<MapTimeTracker>k__BackingField")
-                        .Method("Tick", secondTick).GetValue();
 
-                    // apply campaign time to scene time
-                    Mission.Current.Scene.TimeOfDay = CampaignTime.Now.CurrentHourInDay;
-                }
+                // tick campagin time
+                Traverse.Create(Campaign.Current).Field("<MapTimeTracker>k__BackingField")
+                    .Method("Tick", secondTick).GetValue();
             }
 
             if (!TimePassSettings.Instance.disableSkyUpdate)
@@ -64,7 +53,7 @@ namespace TimePass
                 return;
             }
 
-            int currentHour = (int)Mission.Current.Scene.TimeOfDay; //CampaignTime.Now.CurrentHourInDay;
+            int currentHour = (int)TimePassSkyInfo.GetCurrentTimeOfDay();
 
             // update whole atmosphere once in an hour
             string atmosphereName =
@@ -78,7 +67,7 @@ namespace TimePass
                 // it will still show sun instead moon, and vice versa
 
                 // Mission.Current.Scene.SetAtmosphereWithName(atmosphereName);
-                // if(enableDebug)InformationManager.DisplayMessage(new InformationMessage("Current Atmosphere : " + atmosphereName));
+                // if(TimePassSettings.Instance.enableDebug)InformationManager.DisplayMessage(new InformationMessage("Current Atmosphere : " + atmosphereName));
 
                 lastTickHour = currentHour;
             }
@@ -86,7 +75,7 @@ namespace TimePass
 
             // lerp sun position every tick
             int nextHour = currentHour + 1;
-            float hourProgress = /*CampaignTime.Now.CurrentHourInDay*/Mission.Current.Scene.TimeOfDay - currentHour;
+            float hourProgress = TimePassSkyInfo.GetCurrentTimeOfDay() - currentHour;
             // since there is no 00:00 atmosphere data, we lerp for 2 hours during 23:00 to 1:00
             if (currentHour == 0)
             {
@@ -100,7 +89,7 @@ namespace TimePass
             TimePassSkyInfo lerpSkyInfo = TimePassSkyInfo.Lerp(skyInfo, nextSkyInfo, hourProgress);
             // Mission.Current.Scene.SetSkyRotation(lerpSkyInfo.skybox_rotation);
 
-            float normalizedHour = ( /*CampaignTime.Now.CurrentHourInDay*/Mission.Current.Scene.TimeOfDay % 24) / 24;
+            float normalizedHour = (TimePassSkyInfo.GetCurrentTimeOfDay() % 24) / 24;
             bool isSunMoon;
             float timeFactorForSnow = 1, timeFactorForRain = 1;
             if (Campaign.Current != null)
@@ -136,6 +125,7 @@ namespace TimePass
                     .GetRainDensity() + " snow density : " + Mission.Current.Scene.GetSnowDensity()));
             }
         }
+
 
         // return true if should tick sky
         private bool UpdateSkyTickCounter(float dt)
