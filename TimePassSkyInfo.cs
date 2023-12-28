@@ -109,6 +109,8 @@ namespace TimePass
 
         public static TimePassSkyInfo Lerp(TimePassSkyInfo fromSkyInfo, TimePassSkyInfo toSkyInfo, float hourProgress)
         {
+            float lerpedSunsize = Mathf.Lerp(fromSkyInfo.sun_size, toSkyInfo.sun_size, hourProgress);
+            float clampedSunSize = lerpedSunsize < 0.05f ? 0.05f : lerpedSunsize;
             TimePassSkyInfo skyInfo = new TimePassSkyInfo
             {
                 skybox_rotation = MBMath.Lerp(fromSkyInfo.skybox_rotation, toSkyInfo.skybox_rotation, hourProgress),
@@ -117,7 +119,7 @@ namespace TimePass
                     hourProgress),
                 sun_angle = Mathf.Lerp(fromSkyInfo.sun_angle, toSkyInfo.sun_angle, hourProgress),
                 sun_intesity = Mathf.Lerp(fromSkyInfo.sun_intesity, toSkyInfo.sun_intesity, hourProgress),
-                sun_size = Mathf.Lerp(fromSkyInfo.sun_size, toSkyInfo.sun_size, hourProgress),
+                sun_size = clampedSunSize,
                 sunshafts_strength = Mathf.Lerp(fromSkyInfo.sunshafts_strength, toSkyInfo.sunshafts_strength,
                     hourProgress),
                 sun_color = Vec3.Lerp(fromSkyInfo.sun_color, toSkyInfo.sun_color, hourProgress),

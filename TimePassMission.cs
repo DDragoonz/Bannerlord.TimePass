@@ -119,7 +119,7 @@ namespace TimePass
             Mission.Current.Scene.SetSun(ref lerpSkyInfo.sun_color, lerpSkyInfo.sun_altitude
                 , lerpSkyInfo.sun_angle, lerpSkyInfo.sun_intesity);
             // Mission.Current.Scene.SetSunAngleAltitude(lerpSkyInfo.sun_angle,sunAltitude);
-            Mission.Current.Scene.SetSunSize(lerpSkyInfo.sun_size);
+            // Mission.Current.Scene.SetSunSize(lerpSkyInfo.sun_size);
             Mission.Current.Scene.SetSunShaftStrength(lerpSkyInfo.sunshafts_strength);
             Mission.Current.Scene.SetSkyBrightness(lerpSkyInfo.sky_brightness);
             Mission.Current.Scene.SetMaxExposure(lerpSkyInfo.max_exposure);
