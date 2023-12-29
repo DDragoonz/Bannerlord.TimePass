@@ -16,6 +16,10 @@ namespace TimePass
         {
             base.OnBeforeMissionBehaviorInitialize(mission);
             mission.AddMissionBehavior(new TimePassMission());
+            if (TimePassSettings.Instance.enableDebug)
+            {
+                TimePassSettings.Instance = TimePassSettings.LoadSettings();
+            }
         }
     }
 }
