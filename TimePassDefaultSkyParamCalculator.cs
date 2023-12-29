@@ -35,8 +35,7 @@ namespace TimePass
                 return MBMath.Lerp(180f, 0f, num, 1E-05f);
             }
         }
-
-        // Token: 0x0600164A RID: 5706 RVA: 0x0006B354 File Offset: 0x00069554
+        
         public static Vec3 GetFogColor(float environmentMultiplier, bool sunIsMoon)
         {
             Vec3 vec;

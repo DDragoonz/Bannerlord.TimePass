@@ -24,6 +24,7 @@ namespace TimePass
         public float target_exposure;
         public float brightpass_threshold;
         public Vec3 fog_ambient_color;
+        public string color_grade_name;
 
 
         public void SetValue(string varName, string value)
@@ -74,6 +75,9 @@ namespace TimePass
                     fog_ambient_color = new Vec3(float.Parse(splitValue2[0]), float.Parse(splitValue2[1]),
                         float.Parse(splitValue2[2]));
                     break;
+                case "color_grade_name":
+                    color_grade_name = value;
+                    break;
                 default:
                     break;
             }
@@ -82,12 +86,13 @@ namespace TimePass
         public override string ToString()
         {
             return "time : " + GetCurrentTimeOfDay()
+                             + "\n color_grade_name : "+color_grade_name
                              + "\n skybox_rotation : " + skybox_rotation
                              + "\n sky_brightness : " + sky_brightness
                              + "\n sun_altitude : " + sun_altitude
                              + "\n sun_angle : " + sun_angle
                              + "\n sun_intesity : " + sun_intesity
-                             + "\n sun_size : " + sun_size
+                             // + "\n sun_size : " + sun_size
                              + "\n sun_color : " + sun_color
                              + "\n sunshafts_strength : " + sunshafts_strength
                              + "\n max_exposure : " + max_exposure
@@ -106,8 +111,8 @@ namespace TimePass
 
             if (Mission.Current != null && Mission.Current.Scene != null)
             {
-                return Mission.Current.Scene.TimeOfDay + (Mission.Current.CurrentTime *
-                    TimePassSettings.Instance.realSecondToWorldSecondRatio / 3600);
+                return (Mission.Current.Scene.TimeOfDay + (Mission.Current.CurrentTime *
+                    TimePassSettings.Instance.realSecondToWorldSecondRatio / 3600)) % 24;
             }
 
             return 0;
@@ -134,38 +139,89 @@ namespace TimePass
                 min_exposure = Mathf.Lerp(fromSkyInfo.min_exposure, toSkyInfo.min_exposure, hourProgress),
                 target_exposure = Mathf.Lerp(fromSkyInfo.target_exposure, toSkyInfo.target_exposure, hourProgress),
                 brightpass_threshold = Mathf.Lerp(fromSkyInfo.brightpass_threshold, toSkyInfo.brightpass_threshold,
-                    hourProgress)
+                    hourProgress),
+                color_grade_name = fromSkyInfo.color_grade_name
             };
 
             return skyInfo;
         }
 
-        public static string GetAtmosphereName(int currentHour, float rainDensity)
+        public static string GetAtmosphereName(int hour, bool isBadWeather)
         {
-            if (currentHour > 24)
-            {
-                currentHour %= 24;
-            }
+            hour = ClampAtmosphereHour(hour);
+            string suffix = "_00_SemiCloudy";
 
-            if (currentHour > 12)
+            // only use overcast atmosphere when hour not 1.
+            // there are TOD_01_00_HeavyRain, but it's unfortunately it could be too dark to be playable.
+            if (isBadWeather && hour != 1)
             {
-                currentHour = 12 - (currentHour - 12);
+                suffix = "_00_Overcast";
             }
-
-            // skipping TOD_12_00_SemiCloudy because it somehow has different sun position than the other, causing wrong shadow position
-            if (currentHour == 12)
-            {
-                currentHour = 11;
-            }
-
-            if (currentHour == 0)
-            {
-                currentHour = 1;
-            }
-
-            // TODO : handle rain atmosphere
-            return "TOD_" + currentHour.ToString("00") + "_00_SemiCloudy";
+            
+            return "TOD_" + hour.ToString("00") + suffix;
+            
         }
+
+        // this is used to get atmosphere file
+        public static int ClampAtmosphereHour(int hour)
+        {
+            if (hour > 24)
+            {
+                hour %= 24;
+            }
+
+            if (hour > 12)
+            {
+                hour = 12 - (hour - 12);
+            }
+
+            if (hour == 0)
+            {
+                hour = 1;
+            }
+            
+            return hour;
+        }
+
+        public static int GetUnclampedAtmosphereHour(int currentHour, bool isBadWeather)
+        {
+            
+            if (isBadWeather)
+            {
+                if (currentHour < 6) return 1;
+                if (currentHour < 8) return 6;
+                if (currentHour < 12) return 8;
+                if (currentHour < 16) return 12;
+                if (currentHour < 18) return 16;
+                if (currentHour < 23) return 18;
+            }
+
+            return currentHour; 
+        }
+
+        // get next hour where atmosphere will change
+        public static int GetUnclampedNextAtmosphereHour(int currentHour, bool isBadWeather)
+        {
+            if (currentHour == 23)
+            {
+                return 1;
+            }
+
+            if (isBadWeather)
+            {
+                if (currentHour < 1) return 1;
+                if (currentHour < 6) return 6;
+                if (currentHour < 8) return 8;
+                if (currentHour < 12) return 12;
+                if (currentHour < 16) return 16;
+                if (currentHour < 18) return 18;
+                if (currentHour < 23) return 23;                
+            }
+
+            return currentHour + 1; 
+
+        }
+
 
         public static TimePassSkyInfo GetOrReadSkyInfo(int currentHour, string atmosphereName)
         {
@@ -191,17 +247,19 @@ namespace TimePass
                 {
                     xmlReader.MoveToContent();
 
-                    xmlReader.ReadToDescendant("global_ambient");
-                    xmlReader.MoveToAttribute("fog_ambient_color");
-                    result.SetValue("fog_ambient_color", xmlReader.Value);
-
-                    string[] sections = { "fog", "sun", "postfx" };
+                    string[] sections = {"values", "global_ambient", "fog", "sun", "postfx" };
                     foreach (string section in sections)
                     {
                         xmlReader.ReadToDescendant(section);
                         while (xmlReader.Read())
                         {
-                            if (xmlReader.MoveToAttribute("name"))
+
+                            if (section == "global_ambient")
+                            {
+                                xmlReader.MoveToAttribute("fog_ambient_color");
+                                result.SetValue("fog_ambient_color", xmlReader.Value);
+                            }
+                            else if (xmlReader.MoveToAttribute("name"))
                             {
                                 string varName = xmlReader.Value;
                                 xmlReader.MoveToAttribute("value");
@@ -227,5 +285,8 @@ namespace TimePass
         }
 
         private static Dictionary<string, TimePassSkyInfo> skyInfoCache = new Dictionary<string, TimePassSkyInfo>();
+
+
+        
     }
 }

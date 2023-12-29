@@ -1,5 +1,7 @@
-﻿using HarmonyLib;
+﻿using System;
+using HarmonyLib;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
@@ -7,9 +9,9 @@ namespace TimePass
 {
     public class TimePassMission : MissionLogic
     {
-        public override void OnAfterMissionCreated()
+        public override void AfterStart()
         {
-            base.OnAfterMissionCreated();
+            base.AfterStart();
             if (TimePassSettings.Instance.enableDebug)
                 InformationManager.DisplayMessage(
                     new InformationMessage("Mission Initialize! CurrentTime : " +
@@ -19,12 +21,11 @@ namespace TimePass
             lastTickHour = Campaign.Current == null ? 0 : (int)CampaignTime.Now.CurrentHourInDay;
         }
 
-        public override void OnMissionTick(float dt)
+        public override void OnPreDisplayMissionTick(float dt)
         {
-            base.OnMissionTick(dt);
+            base.OnPreDisplayMissionTick(dt);
 
-            if (Mission.Current != null && Mission.Current.Scene != null && Mission.Current
-                    .Scene.IsLoadingFinished())
+            if (Mission.Current != null && Mission.Scene != null && Mission.Scene.IsLoadingFinished())
             {
                 float secondTick = dt * TimePassSettings.Instance.realSecondToWorldSecondRatio;
 
@@ -41,11 +42,13 @@ namespace TimePass
 
         private void UpdateSky(float dt)
         {
-            if (Mission.Current == null || Mission.Current.Scene == null || Mission.Current.Scene.IsAtmosphereIndoor
-                || !Mission.Current.Scene.IsLoadingFinished())
+            if (Mission.Current == null || Mission.Scene == null || Mission.Scene.IsAtmosphereIndoor
+                || !Mission.Scene.IsLoadingFinished())
             {
                 return;
             }
+            
+            bool isBadWeather = Mission.Scene.GetRainDensity() > 0.0f;
 
             // update sky tick counter
             if (!UpdateSkyTickCounter(dt))
@@ -53,11 +56,15 @@ namespace TimePass
                 return;
             }
 
+            
             int currentHour = (int)TimePassSkyInfo.GetCurrentTimeOfDay();
+            int unclampedAtmosphereHour = TimePassSkyInfo.GetUnclampedAtmosphereHour(currentHour,isBadWeather);
+            int atmosphereHour = TimePassSkyInfo.ClampAtmosphereHour(unclampedAtmosphereHour);
 
             // update whole atmosphere once in an hour
-            string atmosphereName =
-                TimePassSkyInfo.GetAtmosphereName(currentHour, Mission.Current.Scene.GetRainDensity());
+            string atmosphereName = TimePassSkyInfo.GetAtmosphereName(atmosphereHour, isBadWeather);
+            TimePassSkyInfo skyInfo = TimePassSkyInfo.GetOrReadSkyInfo(currentHour, atmosphereName);
+            
             if (currentHour != lastTickHour)
             {
                 // runtime atmosphere changing is currently disabled. 
@@ -66,7 +73,7 @@ namespace TimePass
                 // downside : skybox will remain same as player enter the scene, if player enter scene during day and time passed until night, 
                 // it will still show sun instead moon, and vice versa
 
-                // Mission.Current.Scene.SetAtmosphereWithName(atmosphereName);
+                // Mission.Scene.SetAtmosphereWithName(atmosphereName);
                 // if(TimePassSettings.Instance.enableDebug)InformationManager.DisplayMessage(new InformationMessage("Current Atmosphere : " + atmosphereName));
 
                 lastTickHour = currentHour;
@@ -74,20 +81,22 @@ namespace TimePass
 
 
             // lerp sun position every tick
-            int nextHour = currentHour + 1;
-            float hourProgress = TimePassSkyInfo.GetCurrentTimeOfDay() - currentHour;
-            // since there is no 00:00 atmosphere data, we lerp for 2 hours during 23:00 to 1:00
-            if (currentHour == 0)
+            int unclampedNextAtmosphereHour = TimePassSkyInfo.GetUnclampedNextAtmosphereHour(currentHour,isBadWeather);
+            int nextAtmosphereHour = TimePassSkyInfo.ClampAtmosphereHour(unclampedNextAtmosphereHour);
+            int timeDiff = Math.Abs(unclampedNextAtmosphereHour - unclampedAtmosphereHour);
+            float hourProgress = TimePassSkyInfo.GetCurrentTimeOfDay() - unclampedAtmosphereHour;
+            // if atmosphere changed
+            if (timeDiff > 0)
             {
-                hourProgress = (hourProgress + 1) / 2;
+                hourProgress /= timeDiff;
             }
 
-            TimePassSkyInfo skyInfo = TimePassSkyInfo.GetOrReadSkyInfo(currentHour, atmosphereName);
-            string nextAtmosphereName =
-                TimePassSkyInfo.GetAtmosphereName(nextHour, Mission.Current.Scene.GetRainDensity());
-            TimePassSkyInfo nextSkyInfo = TimePassSkyInfo.GetOrReadSkyInfo(nextHour, nextAtmosphereName);
+
+            string nextAtmosphereName = TimePassSkyInfo.GetAtmosphereName(nextAtmosphereHour, isBadWeather);
+            TimePassSkyInfo nextSkyInfo = TimePassSkyInfo.GetOrReadSkyInfo(unclampedNextAtmosphereHour, nextAtmosphereName);
+            
             TimePassSkyInfo lerpSkyInfo = TimePassSkyInfo.Lerp(skyInfo, nextSkyInfo, hourProgress);
-            // Mission.Current.Scene.SetSkyRotation(lerpSkyInfo.skybox_rotation);
+            // Mission.Scene.SetSkyRotation(lerpSkyInfo.skybox_rotation);
 
             float normalizedHour = (TimePassSkyInfo.GetCurrentTimeOfDay() % 24) / 24;
             bool isSunMoon;
@@ -105,24 +114,35 @@ namespace TimePass
                 out lerpSkyInfo.sun_altitude, out lerpSkyInfo.sun_angle, out
                 isSunMoon);
 
-            Mission.Current.Scene.SetSun(ref lerpSkyInfo.sun_color, lerpSkyInfo.sun_altitude
+
+            // realistic weather dust storm
+            // lerpSkyInfo.sky_brightness = (TimePassSkyInfo.GetCurrentTimeOfDay() < 12f)
+            //     ? ((MathF.Pow(2f, TimePassSkyInfo.GetCurrentTimeOfDay()) - 1f) / 10f)
+            //     : ((MathF.Pow(2f, 24f - TimePassSkyInfo.GetCurrentTimeOfDay()) - 1f) / 10f);
+            // Mission.Scene.SetSceneColorGradeIndex(23);
+            
+
+            Mission.Scene.SetSun(ref lerpSkyInfo.sun_color, lerpSkyInfo.sun_altitude
                 , lerpSkyInfo.sun_angle, lerpSkyInfo.sun_intesity);
-            // Mission.Current.Scene.SetSunAngleAltitude(lerpSkyInfo.sun_angle,sunAltitude);
-            // Mission.Current.Scene.SetSunSize(lerpSkyInfo.sun_size);
-            Mission.Current.Scene.SetSunShaftStrength(lerpSkyInfo.sunshafts_strength);
-            Mission.Current.Scene.SetSkyBrightness(lerpSkyInfo.sky_brightness);
-            Mission.Current.Scene.SetMaxExposure(lerpSkyInfo.max_exposure);
-            Mission.Current.Scene.SetMinExposure(lerpSkyInfo.min_exposure);
-            Mission.Current.Scene.SetTargetExposure(lerpSkyInfo.target_exposure);
-            Mission.Current.Scene.SetBrightpassThreshold(lerpSkyInfo.brightpass_threshold);
-            Mission.Current.Scene.SetFogAmbientColor(ref lerpSkyInfo.fog_ambient_color);
-            // TODO : update fog?
+            // Mission.Scene.SetSunAngleAltitude(lerpSkyInfo.sun_angle,lerpSkyInfo.sun_altitude);
+            // Mission.Scene.SetSunSize(lerpSkyInfo.sun_size);
+            Mission.Scene.SetSunShaftStrength(lerpSkyInfo.sunshafts_strength);
+            Mission.Scene.SetSkyBrightness(lerpSkyInfo.sky_brightness);
+            Mission.Scene.SetMaxExposure(lerpSkyInfo.max_exposure);
+            Mission.Scene.SetMinExposure(lerpSkyInfo.min_exposure);
+            Mission.Scene.SetTargetExposure(lerpSkyInfo.target_exposure);
+            Mission.Scene.SetBrightpassThreshold(lerpSkyInfo.brightpass_threshold);
+            Mission.Scene.SetFogAmbientColor(ref lerpSkyInfo.fog_ambient_color);
+            Mission.Scene.SetColorGradeBlend(skyInfo.color_grade_name,nextSkyInfo.color_grade_name,hourProgress);
+            
+            
+
 
             if (TimePassSettings.Instance.enableDebug)
             {
                 InformationManager.DisplayMessage(new InformationMessage("Sky Info : " + lerpSkyInfo));
-                InformationManager.DisplayMessage(new InformationMessage("rain density : " + Mission.Current.Scene
-                    .GetRainDensity() + " snow density : " + Mission.Current.Scene.GetSnowDensity()));
+                InformationManager.DisplayMessage(new InformationMessage("rain density : " + Mission.Scene
+                    .GetRainDensity() + " snow density : " + Mission.Scene.GetSnowDensity()));
             }
         }
 
@@ -131,14 +151,14 @@ namespace TimePass
         private bool UpdateSkyTickCounter(float dt)
         {
             skyTickTime += dt;
-
-            float rainDensity = Mission.Current.Scene.GetRainDensity();
-            float snowDensity = Mission.Current.Scene.GetSnowDensity();
+            
             float tickInterval = TimePassSettings.Instance.skyTickTimeInterval;
 
-            // override tick interval to rainSkyTickTimeInterval during rain.
-            // because it will make rain particle goes crazy if updating too much in short period
-            if (rainDensity > 0.5f && tickInterval < TimePassSettings.Instance.rainSkyTickTimeInterval)
+            GameEntity rainPrefab = Mission.Scene.GetFirstEntityWithName("rain_prefab_entity") ?? Mission.Scene.GetFirstEntityWithName("snow_prefab_entity");
+            bool hasRainParticle = rainPrefab != null && rainPrefab.ChildCount > 0;
+            // override tick interval to rainSkyTickTimeInterval during bad weather (snowy or rain).
+            // because it will make rain / snow particle goes crazy if updating too much in short period
+            if (hasRainParticle && tickInterval < TimePassSettings.Instance.rainSkyTickTimeInterval)
             {
                 tickInterval = TimePassSettings.Instance.rainSkyTickTimeInterval;
             }
