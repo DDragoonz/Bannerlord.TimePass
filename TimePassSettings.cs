@@ -15,6 +15,19 @@ namespace TimePass
         public float skyTickTimeInterval;
         public float rainSkyTickTimeInterval;
 
+        public bool usePerCultureAtmosphereSettings;
+        public bool updateColorGrade;
+        public bool updateSkyBrightness;
+        public bool updateSunColorAndIntensity;
+        public bool updateSunShaft;
+        public bool updateSunSize;
+        public bool updateExposure;
+        public bool updateBrightpassThreshold;
+        public bool updateMiddleGray;
+        public bool updateAmbientColor;
+        public bool updateFog;
+        
+
         public static TimePassSettings LoadSettings()
         {
             TimePassSettings result;

@@ -21,7 +21,7 @@ namespace TimePass
             if (normalizedHour >= 0.083333336f && normalizedHour < 0.9166667f)
             {
                 float amount = (normalizedHour - 0.083333336f) / 0.8333334f;
-                return MBMath.Lerp(0f, 180f, amount, 1E-05f);
+                return MBMath.Lerp(minSunAltitude, maxSunAltitude, amount, 1E-05f);
             }
             else
             {
@@ -32,7 +32,7 @@ namespace TimePass
 
                 float num = (normalizedHour - -0.08333331f) / 0.16666666f;
                 num = ((num < 0f) ? 0f : ((num > 1f) ? 1f : num));
-                return MBMath.Lerp(180f, 0f, num, 1E-05f);
+                return MBMath.Lerp(maxSunAltitude, minSunAltitude, num, 1E-05f);
             }
         }
         
@@ -151,7 +151,7 @@ namespace TimePass
             {
                 sunIsMoon = false;
                 float amount = (hourNorm - 0.083333336f) / 0.8333334f;
-                altitude = MBMath.Lerp(0f, 180f, amount, 1E-05f);
+                altitude = MBMath.Lerp(minSunAltitude, maxSunAltitude, amount, 1E-05f);
                 angle = 50f * seasonFactor;
             }
             else
@@ -164,7 +164,7 @@ namespace TimePass
 
                 float num = (hourNorm - -0.08333331f) / 0.16666666f;
                 num = ((num < 0f) ? 0f : ((num > 1f) ? 1f : num));
-                altitude = MBMath.Lerp(180f, 0f, num, 1E-05f);
+                altitude = MBMath.Lerp(maxSunAltitude, minSunAltitude, num, 1E-05f);
                 angle = 50f * seasonFactor;
             }
         }
@@ -205,5 +205,8 @@ namespace TimePass
 
             return num;
         }
+        
+        private static readonly float minSunAltitude = -10f;
+        private static readonly float maxSunAltitude = 190f;
     }
 }

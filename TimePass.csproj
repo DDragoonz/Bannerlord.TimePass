@@ -259,6 +259,8 @@
     </ItemGroup>
     <ItemGroup>
         <Compile Include="TimePassDefaultSkyParamCalculator.cs" />
+        <Compile Include="TimePassInterpolationData.cs" />
+        <Compile Include="TimePassInterpolationDataCollection.cs" />
         <Compile Include="TimePassMission.cs" />
         <Compile Include="TimePassSettings.cs" />
         <Compile Include="TimePassSkyInfo.cs" />
