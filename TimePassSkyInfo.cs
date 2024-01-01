@@ -125,9 +125,6 @@ namespace TimePass
         public static float GetCurrentTimeOfDay()
         {
 
-            // at first I thought changing Scene.TimeOfDay causing torch lighting flicker,
-            // but actually it was because improper ticking method (put in application tick instead preDisplayTick) 
-            
             if (Campaign.Current != null)
             {
                 return CampaignTime.Now.CurrentHourInDay;
