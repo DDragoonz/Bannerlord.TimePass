@@ -1,9 +1,13 @@
 ﻿using System;
+using System.Collections.Generic;
 using HarmonyLib;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
+using TaleWorlds.Engine;
+using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.ScreenSystem;
 
 namespace TimePass
 {
@@ -17,7 +21,8 @@ namespace TimePass
                     new InformationMessage("Mission Initialize! CurrentTime : " +
                                            TimePassSkyInfo.GetCurrentTimeOfDay()));
 
-            skyTickTime = 0.0f;
+            // allow first tick to always update sky
+            skyTickTime = Math.Max(TimePassSettings.Instance.realSecondToWorldSecondRatio, TimePassSettings.Instance.rainSkyTickTimeInterval);
             lastTickHour = Campaign.Current == null ? 0 : (int)CampaignTime.Now.CurrentHourInDay;
 
             Type realisticWeatherManagerType = AccessTools.TypeByName("RealisticWeather.RealisticWeatherManager");
@@ -31,6 +36,21 @@ namespace TimePass
             MissionInitializerRecord initializerRecord = Traverse.Create(Mission).Field("<InitializerRecord>k__BackingField").GetValue<MissionInitializerRecord>();
             interpAtmosphere = initializerRecord.AtmosphereOnCampaign.InterpolatedAtmosphereName; // filled during campaign, null during custom battle
             presetAtmosphere = initializerRecord.AtmosphereOnCampaign.AtmosphereName; // null during campagin, filled during custom battle
+
+            InitUI();
+        }
+
+        private void InitUI()
+        {
+            if (!TimePassSettings.Instance.displayTime)
+            {
+                return;
+            }
+            
+            GauntletLayer layer = new GauntletLayer(100);
+            timePassVM = new TimePassVM();
+            layer.LoadMovie("TimePassTimeWidget", timePassVM);
+            ScreenManager.TopScreen.AddLayer(layer);
         }
 
         public override void OnPreDisplayMissionTick(float dt)
@@ -44,6 +64,11 @@ namespace TimePass
                 // tick campagin time
                 Traverse.Create(Campaign.Current).Field("<MapTimeTracker>k__BackingField")
                     .Method("Tick", secondTick).GetValue();
+
+                if (timePassVM != null)
+                {
+                    timePassVM.OnPropertyChanged("TimePassTimeOfDayText");
+                }
             }
 
             if (!TimePassSettings.Instance.disableSkyUpdate)
@@ -54,13 +79,12 @@ namespace TimePass
 
         private void UpdateSky(float dt)
         {
-            if (Mission.Current == null || Mission.Scene == null || Mission.Scene.IsAtmosphereIndoor
-                || !Mission.Scene.IsLoadingFinished())
+            if (Mission.Scene == null || Mission.Scene.IsAtmosphereIndoor
+                                      || !Mission.Scene.IsLoadingFinished())
             {
                 return;
             }
-            
-            bool isBadWeather = Mission.Scene.GetRainDensity() > 0.0f;
+
 
             // update sky tick counter
             if (!UpdateSkyTickCounter(dt))
@@ -68,25 +92,17 @@ namespace TimePass
                 return;
             }
 
-            
-            int currentHour = (int)TimePassSkyInfo.GetCurrentTimeOfDay();
-            int unclampedAtmosphereHour = TimePassSkyInfo.GetUnclampedAtmosphereHour(currentHour,isBadWeather);
-            int atmosphereHour = TimePassSkyInfo.ClampAtmosphereHour(unclampedAtmosphereHour);
 
-            // update whole atmosphere once in an hour
-            string atmosphereName = TimePassSkyInfo.GetAtmosphereName(atmosphereHour, isBadWeather);
-            TimePassSkyInfo skyInfo = TimePassSkyInfo.GetOrReadSkyInfo(currentHour, atmosphereName);
-            
-            if (currentHour != lastTickHour)
-            {
-                // runtime atmosphere changing is currently disabled. 
-                // reason 1 : changing atmosphere in runtime will causing brief flicker / flash, which might causing discomfort
-                // reason 2 : for some reason, changing atmosphere in runtime might delete some scene objects (road, tree)
-                // downside : skybox will remain same as player enter the scene, if player enter scene during day and time passed until night, 
-                // it will still show sun instead moon, and vice versa
+            // if (currentHour != lastTickHour)
+            // {
+            // runtime atmosphere changing is currently disabled. 
+            // reason 1 : changing atmosphere in runtime will causing brief flicker / flash, which might causing discomfort
+            // reason 2 : for some reason, changing atmosphere in runtime might delete some scene objects (road, tree)
+            // downside : skybox will remain same as player enter the scene, if player enter scene during day and time passed until night, 
+            // it will still show sun instead moon, and vice versa
 
-                // Mission.Scene.SetAtmosphereWithName(atmosphereName);
-                // if(TimePassSettings.Instance.enableDebug)InformationManager.DisplayMessage(new InformationMessage("Current Atmosphere : " + atmosphereName));
+            // Mission.Scene.SetAtmosphereWithName(atmosphereName);
+            // if(TimePassSettings.Instance.enableDebug)InformationManager.DisplayMessage(new InformationMessage("Current Atmosphere : " + atmosphereName));
 
             //     lastTickHour = currentHour;
             // }
@@ -159,7 +175,7 @@ namespace TimePass
         private bool UpdateSkyTickCounter(float dt)
         {
             skyTickTime += dt;
-            
+
             float tickInterval = TimePassSettings.Instance.skyTickTimeInterval;
 
             // unfortunately dependency on rain particle prefab is not reliable, there still a case where rain prefab is null but rain particle still exist
@@ -192,5 +208,7 @@ namespace TimePass
 
         private string interpAtmosphere;
         private string presetAtmosphere;
+
+        private TimePassVM timePassVM;
     }
 }

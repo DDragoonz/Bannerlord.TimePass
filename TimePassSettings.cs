@@ -14,7 +14,12 @@ namespace TimePass
         public float realSecondToWorldSecondRatio;
         public float skyTickTimeInterval;
         public float rainSkyTickTimeInterval;
+        
+        // UI settings
+        public bool displayTime;
+        public bool use24HourFormat;
 
+        // advanced settings
         public bool usePerCultureAtmosphereSettings;
         public bool updateColorGrade;
         public bool updateSkyBrightness;

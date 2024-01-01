@@ -11,7 +11,6 @@ namespace TimePass
     public struct TimePassSkyInfo
     {
         public int hour;
-        public float skybox_rotation;
         public float sun_altitude;
         public float sun_angle;
         public float sun_intesity;
@@ -40,9 +39,6 @@ namespace TimePass
             string[] splitValue = value.Split(',');
             switch (varName)
             {
-                case "skybox_rotation":
-                    skybox_rotation = float.Parse(value);
-                    break;
                 case "sun_altitude":
                     // add 90 altitude past mid day time
                     sun_altitude = float.Parse(value) + (hour > 12 ? 90 : 0);
@@ -95,6 +91,9 @@ namespace TimePass
                 case "color_grade_name":
                     color_grade_name = value;
                     break;
+                case "middle_gray":
+                    middle_gray = float.Parse(value);
+                    break;
                 default:
                     break;
             }
@@ -114,6 +113,7 @@ namespace TimePass
                              + "\n max_exposure : " + max_exposure
                              + "\n min_exposure : " + min_exposure
                              + "\n target_exposure : " + target_exposure
+                             + "\n middle_gray : " + middle_gray
                              + "\n brightpass_threshold : " + brightpass_threshold
                              + "\n fog_ambient_color : " + fog_ambient_color
                              + "\n fog_color : " + fog_color
@@ -124,11 +124,15 @@ namespace TimePass
 
         public static float GetCurrentTimeOfDay()
         {
+
+            // at first I thought changing Scene.TimeOfDay causing torch lighting flicker,
+            // but actually it was because improper ticking method (put in application tick instead preDisplayTick) 
+            
             if (Campaign.Current != null)
             {
                 return CampaignTime.Now.CurrentHourInDay;
             }
-
+            
             if (Mission.Current != null && Mission.Current.Scene != null)
             {
                 return (Mission.Current.Scene.TimeOfDay + (Mission.Current.CurrentTime *
@@ -144,13 +148,12 @@ namespace TimePass
             float clampedSunSize = lerpedSunsize < 0.05f ? 0.05f : lerpedSunsize;
             TimePassSkyInfo skyInfo = new TimePassSkyInfo
             {
-                skybox_rotation = MBMath.Lerp(fromSkyInfo.skybox_rotation, toSkyInfo.skybox_rotation, hourProgress),
                 sky_brightness = Mathf.Lerp(fromSkyInfo.sky_brightness, toSkyInfo.sky_brightness, hourProgress),
                 sun_altitude = Mathf.Lerp(fromSkyInfo.sun_altitude, toSkyInfo.sun_altitude,
                     hourProgress),
                 sun_angle = Mathf.Lerp(fromSkyInfo.sun_angle, toSkyInfo.sun_angle, hourProgress),
                 sun_intesity = Mathf.Lerp(fromSkyInfo.sun_intesity, toSkyInfo.sun_intesity, hourProgress),
-                sun_size = clampedSunSize,
+                sun_size = Mathf.Lerp(fromSkyInfo.sun_size, toSkyInfo.sun_size, hourProgress),
                 sunshafts_strength = Mathf.Lerp(fromSkyInfo.sunshafts_strength, toSkyInfo.sunshafts_strength,
                     hourProgress),
                 sun_color = Vec3.Lerp(fromSkyInfo.sun_color, toSkyInfo.sun_color, hourProgress),
@@ -166,6 +169,7 @@ namespace TimePass
                 fog_color = Vec3.Lerp(fromSkyInfo.fog_color, toSkyInfo.fog_color, hourProgress),
                 fog_density = Mathf.Lerp(fromSkyInfo.fog_density, toSkyInfo.fog_density, hourProgress),
                 fog_falloff = Mathf.Lerp(fromSkyInfo.fog_falloff, toSkyInfo.fog_falloff, hourProgress),
+                middle_gray = Mathf.Lerp(fromSkyInfo.middle_gray,toSkyInfo.middle_gray,hourProgress)
                 
             };
 
