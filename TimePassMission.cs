@@ -124,8 +124,19 @@ namespace TimePass
             }
             else if (TimePassSettings.Instance.updateColorGrade)
             {
-                Mission.Scene.SetColorGradeBlend(targetSkyInfo.color_grade_name, targetSkyInfo.color_grade_name2,
-                    targetSkyInfo.color_grade_alpha);
+                try
+                {
+                    Mission.Scene.SetColorGradeBlend(targetSkyInfo.color_grade_name, targetSkyInfo.color_grade_name2,
+                        targetSkyInfo.color_grade_alpha);
+                }
+                catch (Exception e)
+                {
+                    if (TimePassSettings.Instance.enableDebug)
+                    {
+                        InformationManager.DisplayMessage(new InformationMessage(e.Message, Colors.Red));
+                    }
+                }
+                
             }
 
 

@@ -38,7 +38,7 @@ namespace TimePass
                 
             }
 
-            return valueA = valueB = null;
+            return valueA = valueB = "";
         }
 
         public string GetValue(float time)
