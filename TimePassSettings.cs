@@ -38,6 +38,7 @@ namespace TimePass
             TimePassSettings result;
             try
             {
+
                 using (XmlReader xmlReader = XmlReader.Create(configPath))
                 {
                     xmlReader.MoveToContent();
@@ -51,11 +52,39 @@ namespace TimePass
             }
             catch (Exception e)
             {
-                InformationManager.DisplayMessage(new InformationMessage(
-                    "(Fail to load TimePass Settings!) \n exception : " + e.Message
-                    , Colors.Red));
-                return TimePassSettings.DefaultSettings;
+                if (e is DirectoryNotFoundException || e is FileNotFoundException)
+                {
+                    try
+                    {
+                        using (XmlReader xmlReader = XmlReader.Create(steamWorkShopConfigPath))
+                        {
+                            xmlReader.MoveToContent();
+                            result = (TimePassSettings)new XmlSerializer(typeof(TimePassSettings), new XmlRootAttribute
+                            {
+                                ElementName = xmlReader.Name
+                            }).Deserialize(xmlReader);
+                        }
+
+                        return result;
+                    }
+                    catch (Exception e2)
+                    {
+                        InformationManager.DisplayMessage(new InformationMessage(
+                            "(Fail to load TimePass Settings!) \n exception : " + e2.Message
+                            , Colors.Red));
+                        
+                    }
+                }
+                else
+                {
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        "(Fail to load TimePass Settings!) \n exception : " + e.Message
+                        , Colors.Red));
+                }
+                
             }
+            
+            return TimePassSettings.DefaultSettings;
         }
 
         public static TimePassSettings Instance
@@ -79,7 +108,21 @@ namespace TimePass
             disableSkyUpdate = false,
             realSecondToWorldSecondRatio = 60,
             skyTickTimeInterval = 0.1f,
-            rainSkyTickTimeInterval = 1.0f
+            rainSkyTickTimeInterval = 1.0f,
+            displayTime = true,
+            use24HourFormat = false,
+            usePerCultureAtmosphereSettings = true, 
+            updateColorGrade = true,
+            updateSkyBrightness = true,
+            updateSunColorAndIntensity = true,
+            updateSunShaft = true,
+            updateSunSize = false,
+            updateExposure = true,
+            updateBrightpassThreshold = true,
+            updateMiddleGray = true,
+            updateAmbientColor = false,
+            updateFog = true,
+            
         };
 
         public static readonly string configPath = Path.Combine(Path.Combine(new string[]
@@ -89,6 +132,8 @@ namespace TimePass
             "TimePass",
             "TimePassConfig.xml"
         }));
+
+        public static readonly string steamWorkShopConfigPath = "../../../../workshop/content/261550/3129438112/TimePassConfig.xml"; 
 
 
         private static TimePassSettings _instance;
