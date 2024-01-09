@@ -215,7 +215,7 @@ namespace TimePass
                         , Colors.Red));
             }
 
-            return result;
+            return null;
         }
 
         private static Dictionary<string, TimePassInterpolationDataCollection> interpolationDataCache = new Dictionary<string, TimePassInterpolationDataCollection>();

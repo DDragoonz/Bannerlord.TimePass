@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using TaleWorlds.Library;
 
 namespace TimePass
@@ -7,7 +8,7 @@ namespace TimePass
     {
         private List<KeyValuePair<float,string>> data = new List<KeyValuePair<float, string>>();
 
-        public string GetValueForTime(float time, out string valueA, out string valueB, out float alpha)
+        public bool GetValueForTime(float time, out string valueA, out string valueB, out float alpha)
         {
             alpha = 1;
             
@@ -19,7 +20,7 @@ namespace TimePass
                     valueA = data[i].Value;
                     valueB = data[0].Value;
                     alpha = 1;
-                    return valueA;
+                    return true;
                     break;
                 }
                 
@@ -33,29 +34,42 @@ namespace TimePass
                     valueB = data[i + 1].Value;
                     alpha = (time - currentTime) / (nextTime - currentTime);
 
-                    return valueA;
+                    return true;
                 }
                 
             }
-
-            return valueA = valueB = "";
+            valueA = valueB = "";
+            return false;
         }
 
         public string GetValue(float time)
         {
             string valueA, valueB;
             float alpha;
-            return GetValueForTime(time, out valueA, out valueB, out alpha);
+            if (GetValueForTime(time, out valueA, out valueB, out alpha))
+            {
+                return valueA;
+            }
+
+            return "";
         }
 
         public float GetFloatValue(float time,out float alpha)
         {
             string valueA, valueB;
-            if (GetValueForTime(time,out valueA,out valueB, out alpha) != null)
+            if (GetValueForTime(time,out valueA,out valueB, out alpha))
             {
-                float fValueA = float.Parse(valueA);
-                float fValueB = float.Parse(valueB);
-                return MathF.Lerp(fValueA, fValueB, alpha);
+                try
+                {
+                    float fValueA = float.Parse(valueA);
+                    float fValueB = float.Parse(valueB);
+                    return MathF.Lerp(fValueA, fValueB, alpha);
+                }
+                catch (Exception e)
+                {
+                    // parse failure
+                }
+                
 
             }
             alpha = 0;
@@ -73,17 +87,24 @@ namespace TimePass
         {
             
             string valueA, valueB;
-            if (GetValueForTime(time,out valueA,out valueB, out alpha) != null)
+            if (GetValueForTime(time,out valueA,out valueB, out alpha))
             {
-                string[] splitValueA = valueA.Split(',');
-                Vec3 v3ValueA = new Vec3(float.Parse(splitValueA[0]), float.Parse(splitValueA[1]),
-                    float.Parse(splitValueA[2]));
-                string[] splitValueB = valueB.Split(',');
-                Vec3 v3ValueB = new Vec3(float.Parse(splitValueB[0]), float.Parse(splitValueB[1]),
-                    float.Parse(splitValueB[2]));
+                try
+                {
+                    string[] splitValueA = valueA.Split(',');
+                    Vec3 v3ValueA = new Vec3(float.Parse(splitValueA[0]), float.Parse(splitValueA[1]),
+                        float.Parse(splitValueA[2]));
+                    string[] splitValueB = valueB.Split(',');
+                    Vec3 v3ValueB = new Vec3(float.Parse(splitValueB[0]), float.Parse(splitValueB[1]),
+                        float.Parse(splitValueB[2]));
 
-                return Vec3.Lerp(v3ValueA, v3ValueB, alpha);
-
+                    return Vec3.Lerp(v3ValueA, v3ValueB, alpha);  
+                }
+                catch (Exception e)
+                {
+                    //parse failure
+                }
+                
             }
             alpha = 0;
             return Vec3.Zero;
