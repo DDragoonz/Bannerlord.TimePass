@@ -8,6 +8,10 @@ namespace TimePass
     // some will adjusted to match preset atmosphere data
     public static class TimePassDefaultSkyParamCalculator
     {
+
+        private static readonly float minSunAltitude = -10f;
+        private static readonly float maxSunAltitude = 190f;
+
         public static float GetFogDensity(float environmentMultiplier, float height, bool sunIsMoon)
         {
             float num = sunIsMoon ? 0.5f : 0.4f;
@@ -21,34 +25,31 @@ namespace TimePass
             if (normalizedHour >= 0.083333336f && normalizedHour < 0.9166667f)
             {
                 float amount = (normalizedHour - 0.083333336f) / 0.8333334f;
-                return MBMath.Lerp(minSunAltitude, maxSunAltitude, amount, 1E-05f);
+                return MBMath.Lerp(minSunAltitude, maxSunAltitude, amount);
             }
-            else
+            if (normalizedHour >= 0.9166667f)
             {
-                if (normalizedHour >= 0.9166667f)
-                {
-                    normalizedHour -= 1f;
-                }
-
-                float num = (normalizedHour - -0.08333331f) / 0.16666666f;
-                num = ((num < 0f) ? 0f : ((num > 1f) ? 1f : num));
-                return MBMath.Lerp(maxSunAltitude, minSunAltitude, num, 1E-05f);
+                normalizedHour -= 1f;
             }
+
+            float num = (normalizedHour - -0.08333331f) / 0.16666666f;
+            num = num < 0f ? 0f : num > 1f ? 1f : num;
+            return MBMath.Lerp(maxSunAltitude, minSunAltitude, num);
         }
-        
+
         public static Vec3 GetFogColor(float environmentMultiplier, bool sunIsMoon)
         {
             Vec3 vec;
             if (!sunIsMoon)
             {
                 vec = new Vec3(1f - (1f - environmentMultiplier) / 7f, 0.75f - environmentMultiplier / 4f,
-                    0.55f - environmentMultiplier / 5f, -1f);
+                    0.55f - environmentMultiplier / 5f);
             }
             else
             {
                 vec = new Vec3(1f - environmentMultiplier * 10f, 0.75f + environmentMultiplier * 1.5f,
-                    0.65f + environmentMultiplier * 2f, -1f);
-                vec = Vec3.Vec3Max(vec, new Vec3(0.55f, 0.59f, 0.6f, -1f));
+                    0.65f + environmentMultiplier * 2f);
+                vec = Vec3.Vec3Max(vec, new Vec3(0.55f, 0.59f, 0.6f));
             }
 
             return vec;
@@ -81,13 +82,13 @@ namespace TimePass
             if (!sunIsMoon)
             {
                 vec = new Vec3(1f, 1f - (1f - MathF.Pow(environmentMultiplier, 0.3f)) / 2f,
-                    0.9f - (1f - MathF.Pow(environmentMultiplier, 0.3f)) / 2.5f, -1f);
+                    0.9f - (1f - MathF.Pow(environmentMultiplier, 0.3f)) / 2.5f);
             }
             else
             {
                 vec = new Vec3(0.85f - MathF.Pow(environmentMultiplier, 0.4f),
-                    0.8f - MathF.Pow(environmentMultiplier, 0.5f), 0.8f - MathF.Pow(environmentMultiplier, 0.8f), -1f);
-                vec = Vec3.Vec3Max(vec, new Vec3(0.05f, 0.05f, 0.1f, -1f));
+                    0.8f - MathF.Pow(environmentMultiplier, 0.5f), 0.8f - MathF.Pow(environmentMultiplier, 0.8f));
+                vec = Vec3.Vec3Max(vec, new Vec3(0.05f, 0.05f, 0.1f));
             }
 
             return vec;
@@ -98,7 +99,7 @@ namespace TimePass
         {
             if (snapCampaignTimeToWeatherPeriod)
             {
-                ct = CampaignTime.Hours((float)((int)(ct.ToHours / 4.0 / 2.0) * 4 * 2));
+                ct = CampaignTime.Hours((int)(ct.ToHours / 4.0 / 2.0) * 4 * 2);
             }
 
             float yearProgress = (float)ct.ToSeasons % 4f;
@@ -109,7 +110,7 @@ namespace TimePass
         public static float CalculateTimeFactorForSnow(float yearProgress)
         {
             float result = 0f;
-            if (yearProgress > 1.5f && (double)yearProgress <= 3.5)
+            if (yearProgress > 1.5f && yearProgress <= 3.5)
             {
                 result = MBMath.Map(yearProgress, 1.5f, 3.5f, 0f, 1f);
             }
@@ -128,7 +129,7 @@ namespace TimePass
         public static float CalculateTimeFactorForRain(float yearProgress)
         {
             float result = 0f;
-            if (yearProgress > 1f && (double)yearProgress <= 2.5)
+            if (yearProgress > 1f && yearProgress <= 2.5)
             {
                 result = MBMath.Map(yearProgress, 1f, 2.5f, 0f, 1f);
             }
@@ -151,7 +152,7 @@ namespace TimePass
             {
                 sunIsMoon = false;
                 float amount = (hourNorm - 0.083333336f) / 0.8333334f;
-                altitude = MBMath.Lerp(minSunAltitude, maxSunAltitude, amount, 1E-05f);
+                altitude = MBMath.Lerp(minSunAltitude, maxSunAltitude, amount);
                 angle = 50f * seasonFactor;
             }
             else
@@ -163,8 +164,8 @@ namespace TimePass
                 }
 
                 float num = (hourNorm - -0.08333331f) / 0.16666666f;
-                num = ((num < 0f) ? 0f : ((num > 1f) ? 1f : num));
-                altitude = MBMath.Lerp(maxSunAltitude, minSunAltitude, num, 1E-05f);
+                num = num < 0f ? 0f : num > 1f ? 1f : num;
+                altitude = MBMath.Lerp(maxSunAltitude, minSunAltitude, num);
                 angle = 50f * seasonFactor;
             }
         }
@@ -181,7 +182,7 @@ namespace TimePass
                 num = altitude / 180f * 2f;
             }
 
-            num = ((num > 1f) ? (2f - num) : num);
+            num = num > 1f ? 2f - num : num;
             num = MathF.Pow(num, 0.5f);
             float num2 = 1f - 0.011111111f * angle;
             float num3 = MBMath.ClampFloat(num * num2, 0f, 1f);
@@ -205,8 +206,5 @@ namespace TimePass
 
             return num;
         }
-        
-        private static readonly float minSunAltitude = -10f;
-        private static readonly float maxSunAltitude = 190f;
     }
 }

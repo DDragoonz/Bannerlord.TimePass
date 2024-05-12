@@ -9,17 +9,17 @@ namespace TimePass
         {
             base.OnSubModuleLoad();
             new Harmony("mod.bannerlord.timepass").PatchAll();
-            TimePassSettings.Instance = TimePassSettings.LoadSettings();
+            // TimePassSettings.Instance = TimePassSettings.LoadSettings();
         }
 
         public override void OnBeforeMissionBehaviorInitialize(Mission mission)
         {
             base.OnBeforeMissionBehaviorInitialize(mission);
             mission.AddMissionBehavior(new TimePassMission());
-            if (TimePassSettings.Instance.enableDebug)
-            {
-                TimePassSettings.Instance = TimePassSettings.LoadSettings();
-            }
+            // if (TimePassSettings.Instance.enableDebug)
+            // {
+            //     TimePassSettings.Instance = TimePassSettings.LoadSettings();
+            // }
         }
     }
 }

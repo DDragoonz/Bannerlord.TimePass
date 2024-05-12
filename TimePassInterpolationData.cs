@@ -6,15 +6,15 @@ namespace TimePass
 {
     public class TimePassInterpolationData
     {
-        private List<KeyValuePair<float,string>> data = new List<KeyValuePair<float, string>>();
+        private readonly List<KeyValuePair<float, string>> data = new List<KeyValuePair<float, string>>();
 
         public bool GetValueForTime(float time, out string valueA, out string valueB, out float alpha)
         {
             alpha = 1;
-            
-            for(int i = 0; i<data.Count; i++)
+
+            for (int i = 0; i < data.Count; i++)
             {
-                
+
                 if (i + 1 >= data.Count)
                 {
                     valueA = data[i].Value;
@@ -23,7 +23,7 @@ namespace TimePass
                     return true;
                     break;
                 }
-                
+
                 float currentTime = data[i].Key;
                 float nextTime = data[i + 1].Key;
                 float expectedTime = time;
@@ -36,7 +36,7 @@ namespace TimePass
 
                     return true;
                 }
-                
+
             }
             valueA = valueB = "";
             return false;
@@ -54,10 +54,10 @@ namespace TimePass
             return "";
         }
 
-        public float GetFloatValue(float time,out float alpha)
+        public float GetFloatValue(float time, out float alpha)
         {
             string valueA, valueB;
-            if (GetValueForTime(time,out valueA,out valueB, out alpha))
+            if (GetValueForTime(time, out valueA, out valueB, out alpha))
             {
                 try
                 {
@@ -69,7 +69,7 @@ namespace TimePass
                 {
                     // parse failure
                 }
-                
+
 
             }
             alpha = 0;
@@ -85,9 +85,9 @@ namespace TimePass
 
         public Vec3 GetVec3Value(float time, out float alpha)
         {
-            
+
             string valueA, valueB;
-            if (GetValueForTime(time,out valueA,out valueB, out alpha))
+            if (GetValueForTime(time, out valueA, out valueB, out alpha))
             {
                 try
                 {
@@ -98,17 +98,17 @@ namespace TimePass
                     Vec3 v3ValueB = new Vec3(float.Parse(splitValueB[0]), float.Parse(splitValueB[1]),
                         float.Parse(splitValueB[2]));
 
-                    return Vec3.Lerp(v3ValueA, v3ValueB, alpha);  
+                    return Vec3.Lerp(v3ValueA, v3ValueB, alpha);
                 }
                 catch (Exception e)
                 {
                     //parse failure
                 }
-                
+
             }
             alpha = 0;
             return Vec3.Zero;
-            
+
         }
 
         public Vec3 GetVec3Value(float time)
@@ -120,7 +120,7 @@ namespace TimePass
         public void AddData(float key, string value)
         {
             // if (data == null) data = new List<KeyValuePair<float, string>>();
-            
+
             for (int i = 0; i < data.Count; i++)
             {
                 if (key == data[i].Key)
@@ -130,13 +130,14 @@ namespace TimePass
 
                 if (key < data[i].Key)
                 {
-                    data.Insert(i, new KeyValuePair<float, string>(key,value));
+                    data.Insert(i, new KeyValuePair<float, string>(key, value));
                     return;
                 }
             }
-            data.Add(new KeyValuePair<float, string>(key,value));
+            data.Add(new KeyValuePair<float, string>(key, value));
         }
-        
     }
+
+
 
 }

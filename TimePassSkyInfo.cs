@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Xml;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Library;
-using TaleWorlds.MountAndBlade;
 using TaleWorlds.TwoDimension;
 
 namespace TimePass
@@ -30,9 +30,48 @@ namespace TimePass
         public float fog_density;
         public float fog_falloff;
         public float middle_gray;
-        
-        
+        public string skybox_texture;
 
+        private TimePassSkyInfo(TimePassInterpolationDataCollection data, float currentTimeOfDay)
+        {
+
+            float normalizedHour = currentTimeOfDay % 24 / 24;
+            bool isSunMoon;
+            float timeFactorForSnow = 1, timeFactorForRain = 1;
+            if (Campaign.Current != null)
+            {
+                TimePassDefaultSkyParamCalculator.GetSeasonTimeFactorOfCampaignTime(CampaignTime.Now,
+                    out timeFactorForSnow,
+                    out timeFactorForRain);
+            }
+
+            // get sun position from this function is smoother than lerping between sky info
+            TimePassDefaultSkyParamCalculator.GetSunPosition(normalizedHour, timeFactorForSnow,
+                out sun_altitude, out sun_angle, out isSunMoon);
+
+
+            float timeOfDayHundred = currentTimeOfDay * 10;
+
+            data.colorgrade_texture.GetValueForTime(currentTimeOfDay * 10, out color_grade_name, out color_grade_name2, out color_grade_alpha);
+
+            hour = (int)currentTimeOfDay;
+            sun_intesity = data.sun_intesity.GetFloatValue(timeOfDayHundred);
+            sky_brightness = data.sky_brightness.GetFloatValue(timeOfDayHundred);
+            sun_size = data.sun_size.GetFloatValue(timeOfDayHundred);
+            sunshafts_strength = data.sun_shafts_intesity.GetFloatValue(timeOfDayHundred);
+            sun_color = data.sun_color.GetVec3Value(normalizedHour);
+            middle_gray = data.middle_grey.GetFloatValue(timeOfDayHundred);
+            brightpass_threshold = data.brightpass_exposure.GetFloatValue(timeOfDayHundred);
+            fog_ambient_color = data.global_ambient_color.GetVec3Value(normalizedHour);
+            fog_color = data.fog_color.GetVec3Value(normalizedHour);
+            fog_density = data.fog_density.GetFloatValue(timeOfDayHundred);
+            fog_falloff = data.fog_falloff.GetFloatValue(timeOfDayHundred);
+            skybox_texture = data.skybox_texture.GetValue(timeOfDayHundred);
+
+            max_exposure = data.max_exposure.GetFloatValue(timeOfDayHundred);
+            min_exposure = data.min_exposure.GetFloatValue(timeOfDayHundred);
+            target_exposure = data.target_exposure.GetFloatValue(timeOfDayHundred);
+        }
 
         public void SetValue(string varName, string value)
         {
@@ -94,50 +133,64 @@ namespace TimePass
                 case "middle_gray":
                     middle_gray = float.Parse(value);
                     break;
-                default:
+                case "skybox_texture":
+                    skybox_texture = value;
+                    break;
+                case "skybox_background_texture_name":
+                    skybox_texture = value;
                     break;
             }
         }
 
         public override string ToString()
         {
-            return "time : " + GetCurrentTimeOfDay()
-                             + "\n color_grade_name : "+color_grade_name
-                             + "\n sky_brightness : " + sky_brightness
-                             + "\n sun_altitude : " + sun_altitude
-                             // + "\n sun_angle : " + sun_angle
-                             + "\n sun_intesity : " + sun_intesity
-                             // + "\n sun_size : " + sun_size
-                             + "\n sun_color : " + sun_color
-                             + "\n sunshafts_strength : " + sunshafts_strength
-                             + "\n max_exposure : " + max_exposure
-                             + "\n min_exposure : " + min_exposure
-                             + "\n target_exposure : " + target_exposure
-                             + "\n middle_gray : " + middle_gray
-                             + "\n brightpass_threshold : " + brightpass_threshold
-                             + "\n fog_ambient_color : " + fog_ambient_color
-                             + "\n fog_color : " + fog_color
-                             + "\n fog_density : " + fog_density
-                             + "\n fog_falloff : " + fog_falloff
-                             ;
+            string output = "";
+            output += "time : " + TimeOfDay;
+            if (TimePassSettings.Instance.UpdateColorGrade) output += "\n color_grade_name : " + color_grade_name;
+            if (TimePassSettings.Instance.UpdateSkybox) output += "\n skybox_texture : " + skybox_texture;
+            if (TimePassSettings.Instance.UpdateSkyBrightness) output += "\n sky_brightness : " + sky_brightness;
+            output += "\n sun_altitude : " + sun_altitude;
+            if (TimePassSettings.Instance.UpdateSunColorAndIntensity)
+            {
+                output += "\n sun_color : " + sun_color;
+                output += "\n sun_intesity : " + sun_intesity;
+            }
+            if (TimePassSettings.Instance.UpdateSunShaft) output += "\n sunshafts_strength : " + sunshafts_strength;
+            if (TimePassSettings.Instance.UpdateExposure)
+            {
+                output += "\n max_exposure : " + max_exposure;
+                output += "\n min_exposure : " + min_exposure;
+                output += "\n target_exposure : " + target_exposure;
+            }
+            if (TimePassSettings.Instance.UpdateMiddleGray) output += "\n middle_gray : " + middle_gray;
+            if (TimePassSettings.Instance.UpdateBrightpassThreshold) output += "\n brightpass_threshold : " + brightpass_threshold;
+            if (TimePassSettings.Instance.UpdateFog) output += "\n fog_color : " + fog_color;
+            if (TimePassSettings.Instance.UpdateAmbientColor) output += "\n fog_ambient_color : " + fog_ambient_color;
+            return output;
+
         }
 
-        public static float GetCurrentTimeOfDay()
+        public static void Init(float timeOfDay, bool isBadWeather, string interpAtmosphere = null)
         {
+            TimeOfDay = timeOfDay;
 
-            if (Campaign.Current != null)
+            if (interpAtmosphere != null)
             {
-                return CampaignTime.Now.CurrentHourInDay;
-            }
-            
-            if (Mission.Current != null && Mission.Current.Scene != null)
-            {
-                return (Mission.Current.Scene.TimeOfDay + (Mission.Current.CurrentTime *
-                    TimePassSettings.Instance.realSecondToWorldSecondRatio / 3600)) % 24;
+                TimePassInterpolationDataCollection data = TimePassInterpolationDataCollection.GetInterpolationData(interpAtmosphere);
+                if (data != null)
+                {
+                    initialSkyInfo = new TimePassSkyInfo(data, timeOfDay);
+                    return;
+                }
+
             }
 
-            return 0;
+            int atmosphereHour = ClampAtmosphereHour((int)timeOfDay);
+            string atmosphereName = GetAtmosphereName(atmosphereHour, isBadWeather);
+            initialSkyInfo = GetOrReadSkyInfo((int)timeOfDay, atmosphereName);
+
         }
+
 
         public static TimePassSkyInfo Lerp(TimePassSkyInfo fromSkyInfo, TimePassSkyInfo toSkyInfo, float hourProgress)
         {
@@ -166,8 +219,9 @@ namespace TimePass
                 fog_color = Vec3.Lerp(fromSkyInfo.fog_color, toSkyInfo.fog_color, hourProgress),
                 fog_density = Mathf.Lerp(fromSkyInfo.fog_density, toSkyInfo.fog_density, hourProgress),
                 fog_falloff = Mathf.Lerp(fromSkyInfo.fog_falloff, toSkyInfo.fog_falloff, hourProgress),
-                middle_gray = Mathf.Lerp(fromSkyInfo.middle_gray,toSkyInfo.middle_gray,hourProgress)
-                
+                middle_gray = Mathf.Lerp(fromSkyInfo.middle_gray, toSkyInfo.middle_gray, hourProgress),
+                skybox_texture = toSkyInfo.skybox_texture
+
             };
 
             return skyInfo;
@@ -184,9 +238,9 @@ namespace TimePass
             {
                 suffix = "_00_Overcast";
             }
-            
+
             return "TOD_" + hour.ToString("00") + suffix;
-            
+
         }
 
         // this is used to get atmosphere file
@@ -206,13 +260,13 @@ namespace TimePass
             {
                 hour = 1;
             }
-            
+
             return hour;
         }
 
         public static int GetUnclampedAtmosphereHour(int currentHour, bool isBadWeather)
         {
-            
+
             if (isBadWeather)
             {
                 if (currentHour < 6) return 1;
@@ -223,7 +277,7 @@ namespace TimePass
                 if (currentHour < 23) return 18;
             }
 
-            return currentHour; 
+            return currentHour;
         }
 
         // get next hour where atmosphere will change
@@ -242,10 +296,10 @@ namespace TimePass
                 if (currentHour < 12) return 12;
                 if (currentHour < 16) return 16;
                 if (currentHour < 18) return 18;
-                if (currentHour < 23) return 23;                
+                if (currentHour < 23) return 23;
             }
 
-            return currentHour + 1; 
+            return currentHour + 1;
 
         }
 
@@ -261,20 +315,13 @@ namespace TimePass
                     return result;
                 }
 
-                string path = System.IO.Path.Combine(new string[]
-                {
-                    BasePath.Name,
-                    "Modules",
-                    "Native",
-                    "Atmospheres",
-                    atmosphereName + ".xml"
-                });
+                string path = Path.Combine(BasePath.Name, "Modules", "Native", "Atmospheres", atmosphereName + ".xml");
 
                 using (XmlReader xmlReader = XmlReader.Create(path))
                 {
                     xmlReader.MoveToContent();
 
-                    string[] sections = {"values", "global_ambient", "fog", "sun", "postfx" };
+                    string[] sections = { "values", "global_ambient", "fog", "sun", "postfx" };
                     foreach (string section in sections)
                     {
                         xmlReader.ReadToDescendant(section);
@@ -302,19 +349,33 @@ namespace TimePass
             }
             catch (Exception e)
             {
-                if (TimePassSettings.Instance.enableDebug)
+                if (TimePassSettings.Instance.EnableDebug)
+                {
                     InformationManager.DisplayMessage(new InformationMessage(
                         "GetOrReadSkyInfo(" + atmosphereName + ")exception : " + e.Message
                         , Colors.Red));
+                }
             }
 
             return result;
         }
-        
-        public static TimePassSkyInfo GetTargetSkyInfo(float timeOfDay,bool isBadWeather, string interpAtmosphere = null)
+
+        public static TimePassSkyInfo GetTargetSkyInfo(float timeOfDay, bool isBadWeather, string interpAtmosphere = null)
         {
-            
-            float normalizedHour = (timeOfDay % 24) / 24;
+
+            if (TimePassSettings.Instance.UsePerCultureAtmosphereSettings && interpAtmosphere != null)
+            {
+                TimePassInterpolationDataCollection data =
+                    TimePassInterpolationDataCollection.GetInterpolationData(interpAtmosphere);
+
+                if (data != null)
+                {
+                    return new TimePassSkyInfo(data, timeOfDay);
+                }
+            }
+
+            // if there is no interpolation data, interpolate using preset TOD_Atmosphere
+            float normalizedHour = timeOfDay % 24 / 24;
             bool isSunMoon;
             float timeFactorForSnow = 1, timeFactorForRain = 1;
             float sun_altitude, sun_angle;
@@ -324,86 +385,63 @@ namespace TimePass
                     out timeFactorForSnow,
                     out timeFactorForRain);
             }
-            
+
             // get sun position from this function is smoother than lerping between sky info
             TimePassDefaultSkyParamCalculator.GetSunPosition(normalizedHour, timeFactorForSnow,
                 out sun_altitude, out sun_angle, out isSunMoon);
-            
-            if (TimePassSettings.Instance.usePerCultureAtmosphereSettings && interpAtmosphere != null)
+
+
+            int currentHour = (int)timeOfDay;
+            int unclampedAtmosphereHour = GetUnclampedAtmosphereHour(currentHour, isBadWeather);
+            int atmosphereHour = ClampAtmosphereHour(unclampedAtmosphereHour);
+
+            // update whole atmosphere once in an hour
+            string atmosphereName = GetAtmosphereName(atmosphereHour, isBadWeather);
+            TimePassSkyInfo skyInfo = GetOrReadSkyInfo(currentHour, atmosphereName);
+
+
+            // lerp sun position every tick
+            int unclampedNextAtmosphereHour = GetUnclampedNextAtmosphereHour(currentHour, isBadWeather);
+            int nextAtmosphereHour = ClampAtmosphereHour(unclampedNextAtmosphereHour);
+            int timeDiff = Math.Abs(unclampedNextAtmosphereHour - unclampedAtmosphereHour);
+            float hourProgress = TimeOfDay - unclampedAtmosphereHour;
+            // if atmosphere changed
+            if (timeDiff > 0)
             {
-                TimePassInterpolationDataCollection data =
-                    TimePassInterpolationDataCollection.GetInterpolationData(interpAtmosphere);
-
-                if (data != null)
-                {
-                    string color_grade1, color_grade2;
-                    float color_grade_alpha;
-                    float timeOfDayHundred = timeOfDay * 10;
-                    
-                    data.colorgrade_texture.GetValueForTime(timeOfDay*10, out color_grade1, out color_grade2,
-                        out color_grade_alpha);
-                    return new TimePassSkyInfo
-                    {
-                        hour = (int)timeOfDay,
-                        sun_altitude = sun_altitude,
-                        sun_angle = sun_angle,
-                        sun_intesity = data.sun_intesity.GetFloatValue(timeOfDayHundred),
-                        sky_brightness = data.sky_brightness.GetFloatValue(timeOfDayHundred),
-                        sun_size = data.sun_size.GetFloatValue(timeOfDayHundred),
-                        sunshafts_strength = data.sun_shafts_intesity.GetFloatValue(timeOfDayHundred),
-                        sun_color = data.sun_color.GetVec3Value(normalizedHour),
-                        max_exposure = data.max_exposure.GetFloatValue(timeOfDayHundred),
-                        min_exposure = data.min_exposure.GetFloatValue(timeOfDayHundred),
-                        target_exposure = data.target_exposure.GetFloatValue(timeOfDayHundred),
-                        middle_gray = data.middle_grey.GetFloatValue(timeOfDayHundred),
-                        brightpass_threshold = data.brightpass_exposure.GetFloatValue(timeOfDayHundred),
-                        color_grade_name = color_grade1,
-                        color_grade_name2 = color_grade2,
-                        color_grade_alpha = color_grade_alpha,
-                        fog_ambient_color = data.global_ambient_color.GetVec3Value(normalizedHour),
-                        fog_color = data.fog_color.GetVec3Value(normalizedHour),
-                        fog_density = data.fog_density.GetFloatValue(timeOfDayHundred),
-                        fog_falloff = data.fog_falloff.GetFloatValue(timeOfDayHundred)
-                    };
-                }
+                hourProgress /= timeDiff;
             }
-            
-            // if there is no interpolation data, interpolate using preset TOD_Atmosphere
-            
-             
-             int currentHour = (int)timeOfDay;
-             int unclampedAtmosphereHour = GetUnclampedAtmosphereHour(currentHour,isBadWeather);
-             int atmosphereHour = ClampAtmosphereHour(unclampedAtmosphereHour);
-            
-             // update whole atmosphere once in an hour
-             string atmosphereName = GetAtmosphereName(atmosphereHour, isBadWeather);
-             TimePassSkyInfo skyInfo = GetOrReadSkyInfo(currentHour, atmosphereName);
 
+            string nextAtmosphereName = GetAtmosphereName(nextAtmosphereHour, isBadWeather);
+            TimePassSkyInfo nextSkyInfo = GetOrReadSkyInfo(unclampedNextAtmosphereHour, nextAtmosphereName);
+            TimePassSkyInfo result = Lerp(skyInfo, nextSkyInfo, hourProgress);
+            result.sun_altitude = sun_altitude;
+            result.sun_angle = sun_angle;
 
-             // lerp sun position every tick
-             int unclampedNextAtmosphereHour = GetUnclampedNextAtmosphereHour(currentHour,isBadWeather);
-             int nextAtmosphereHour = ClampAtmosphereHour(unclampedNextAtmosphereHour);
-             int timeDiff = Math.Abs(unclampedNextAtmosphereHour - unclampedAtmosphereHour);
-             float hourProgress = GetCurrentTimeOfDay() - unclampedAtmosphereHour;
-             // if atmosphere changed
-             if (timeDiff > 0)
-             {
-                 hourProgress /= timeDiff;
-             }
-            
-             string nextAtmosphereName = GetAtmosphereName(nextAtmosphereHour, isBadWeather);
-             TimePassSkyInfo nextSkyInfo = GetOrReadSkyInfo(unclampedNextAtmosphereHour, nextAtmosphereName);
-             TimePassSkyInfo result = Lerp(skyInfo, nextSkyInfo, hourProgress);
-             result.sun_altitude = sun_altitude;
-             result.sun_angle = sun_angle;
-
-             return result;
+            return result;
 
         }
 
-        
+        public void ClampTo(TimePassSkyInfo timePassSkyInfo)
+        {
+            float minSkyBrightness = Mathf.Min(timePassSkyInfo.sky_brightness, TimePassSettings.Instance.MinimumSkyBrightness);
 
-        private static Dictionary<string, TimePassSkyInfo> skyInfoCache = new Dictionary<string, TimePassSkyInfo>();
-        
+            sky_brightness = Mathf.Max(minSkyBrightness, sky_brightness);
+            min_exposure = Mathf.Min(timePassSkyInfo.min_exposure, min_exposure);
+            target_exposure = Mathf.Min(timePassSkyInfo.target_exposure, target_exposure);
+        }
+
+        public void ClampToInitialSkyInfo()
+        {
+            ClampTo(initialSkyInfo);
+        }
+
+
+        private static readonly Dictionary<string, TimePassSkyInfo> skyInfoCache = new Dictionary<string, TimePassSkyInfo>();
+        private static TimePassSkyInfo initialSkyInfo;
+
+        public static float TimeOfDay;
+
+
+
     }
 }

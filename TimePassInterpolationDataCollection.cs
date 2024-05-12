@@ -1,14 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Xml;
 using TaleWorlds.Library;
-
 
 namespace TimePass
 {
     public class TimePassInterpolationDataCollection
     {
-        // these variables were ordered based on atmoshpere interpolation data. 
+        
+        // these variables were ordered based on atmosphere interpolation data. 
 
         #region interpolation_element
 
@@ -103,7 +104,7 @@ namespace TimePass
         public static TimePassInterpolationDataCollection GetInterpolationData(string name)
         {
             TimePassInterpolationDataCollection result;
-            if (interpolationDataCache.TryGetValue(name, out result))
+            if (InterpolationDataCache.TryGetValue(name, out result))
             {
                 return result;
             }
@@ -112,18 +113,10 @@ namespace TimePass
 
             try
             {
-                string path = System.IO.Path.Combine(new string[]
-                {
-                    BasePath.Name,
-                    "Modules",
-                    "Native",
-                    "Atmospheres",
-                    "Interpolated",
-                    name + ".xml"
-                });
+                string path = Path.Combine(BasePath.Name, "Modules", "Native", "Atmospheres", "Interpolated", name + ".xml");
 
-                var settings = new XmlReaderSettings { ConformanceLevel = ConformanceLevel.Fragment };
-                using (XmlReader xmlReader = XmlReader.Create(path,settings))
+                XmlReaderSettings settings = new XmlReaderSettings { ConformanceLevel = ConformanceLevel.Fragment };
+                using (XmlReader xmlReader = XmlReader.Create(path, settings))
                 {
                     xmlReader.MoveToContent(); // navigate to <atmo>
                     xmlReader.ReadToFollowing("interpolation_element");
@@ -133,13 +126,14 @@ namespace TimePass
                         TimePassInterpolationData data;
                         string interpolation_name = xmlReader.GetAttribute("name");
                         string[] attributeSplit = interpolation_name.Split('#');
-                        List<string> ignoredName = new List<string>() { "skybox_texture", "colorgrade_texture" };
+                        List<string> ignoredName = new List<string> { "skybox_texture", "colorgrade_texture" };
                         if (attributeSplit.Length >= 2 &&
                             !ignoredName.Contains(attributeSplit[1]) && // we don't want skybox_texture here, we want skybox_texture in later section
                             result.GetInterpolationDataByName(attributeSplit[1], out data))
                         {
                             xmlReader.ReadToFollowing("key_frame");
-                            do{
+                            do
+                            {
                                 if (!xmlReader.MoveToFirstAttribute())
                                 {
                                     continue;
@@ -153,9 +147,8 @@ namespace TimePass
 
                                 data.AddData(key, xmlReader.Value);
                                 xmlReader.MoveToElement();
-                            }
-                            while (xmlReader.ReadToNextSibling("key_frame"));
-                            
+                            } while (xmlReader.ReadToNextSibling("key_frame"));
+
                         }
                     } while (xmlReader.ReadToNextSibling("interpolation_element")); // read <interpolation_element>
 
@@ -166,7 +159,7 @@ namespace TimePass
                     };
                     foreach (string section in sections)
                     {
-                        
+
 
                         TimePassInterpolationData data;
                         if (!result.GetInterpolationDataByName(section, out data))
@@ -178,7 +171,7 @@ namespace TimePass
                         {
                             xmlReader.Read();
                         }
-                        
+
                         xmlReader.ReadToFollowing("key");
                         do
                         {
@@ -203,21 +196,25 @@ namespace TimePass
                     }
 
 
-                    interpolationDataCache.Add(name, result);
+                    InterpolationDataCache.Add(name, result);
+                    return result;
                 }
-                
+
             }
             catch (Exception e)
             {
-                if (TimePassSettings.Instance.enableDebug)
+                if (TimePassSettings.Instance.EnableDebug)
+                {
                     InformationManager.DisplayMessage(new InformationMessage(
                         "GetInterpolationData(" + name + ")exception : " + e.Message
                         , Colors.Red));
+                }
             }
 
             return null;
         }
 
-        private static Dictionary<string, TimePassInterpolationDataCollection> interpolationDataCache = new Dictionary<string, TimePassInterpolationDataCollection>();
+        private static readonly Dictionary<string, TimePassInterpolationDataCollection> InterpolationDataCache = new Dictionary<string, TimePassInterpolationDataCollection>();
+
     }
 }
