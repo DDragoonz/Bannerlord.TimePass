@@ -1,0 +1,17 @@
+<Prefab>
+  <Window>
+    <Widget WidthSizePolicy = "StretchToParent" HeightSizePolicy = "StretchToParent">
+      <Children>
+        <ListPanel LayoutImp.LayoutMethod="VerticalBottomToTop" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="20" MarginLeft="500">
+          <Children>
+            <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Top" PositionYOffset="0">
+              <Children>
+                <TextWidget SuggestedWidth="200" HorizontalAlignment="Right" VerticalAlignment="Top" PositionYOffset="0" ClipContents="false" Brush="TimePassBrush.TimeCounter" Text="@TimePassTimeOfDayText"/>
+              </Children>
+            </Widget>
+          </Children>
+        </ListPanel>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>
