@@ -23,39 +23,39 @@ namespace TimePass
         [SettingPropertyGroup("Debug", GroupOrder = 100)]
         public bool EnableDebug{ get; set; } = false;
 
-        [SettingPropertyFloatingInteger("Arena", 1f, 60, "0.0 IRL Minute", Order = 0, RequireRestart = false, HintText = "How long 1 hour in game while inside Arena should last (in minute)")]
+        [SettingPropertyFloatingInteger("Arena", 0f, 60, "0.0 IRL Minute", Order = 0, RequireRestart = false, HintText = "How long 1 hour in game while inside Arena should last (in minute). 0 means disabled")]
         [SettingPropertyGroup("Time Settings/Combat", GroupOrder = 20)]
         public float ArenaHourDuration{ get; set; } = 1;
 
-        [SettingPropertyFloatingInteger("Siege Battle", 1f, 60, "0.0 IRL Minute", Order = 0, RequireRestart = false, HintText = "How long 1 hour in game while in Siege Battle should last (in minute)")]
+        [SettingPropertyFloatingInteger("Siege Battle", 0f, 60, "0.0 IRL Minute", Order = 0, RequireRestart = false, HintText = "How long 1 hour in game while in Siege Battle should last (in minute). 0 means disabled")]
         [SettingPropertyGroup("Time Settings/Combat", GroupOrder = 20)]
         public float SiegeHourDuration{ get; set; } = 1;
 
-        [SettingPropertyFloatingInteger("Outdoor Battle", 1f, 60, "0.0 IRL Minute", Order = 0, RequireRestart = false, HintText = "How long 1 hour in game while in Battlefield should last (in minute)")]
+        [SettingPropertyFloatingInteger("Outdoor Battle", 0f, 60, "0.0 IRL Minute", Order = 0, RequireRestart = false, HintText = "How long 1 hour in game while in Battlefield should last (in minute). 0 means disabled")]
         [SettingPropertyGroup("Time Settings/Combat", GroupOrder = 20)]
         public float BattlefieldDuration{ get; set; } = 1;
 
-        [SettingPropertyFloatingInteger("Hideout Battle", 1f, 60, "0.0 IRL Minute", Order = 0, RequireRestart = false, HintText = "How long 1 hour in game while in Hideout Battle should last (in minute)")]
+        [SettingPropertyFloatingInteger("Hideout Battle", 0f, 60, "0.0 IRL Minute", Order = 0, RequireRestart = false, HintText = "How long 1 hour in game while in Hideout Battle should last (in minute). 0 means disabled")]
         [SettingPropertyGroup("Time Settings/Combat", GroupOrder = 20)]
         public float HideoutDuration{ get; set; } = 1;
 
-        [SettingPropertyFloatingInteger("Other Battle", 1f, 60, "0.0 IRL Minute", Order = 10, RequireRestart = false, HintText = "How long 1 hour in game during uncategorized battle should last (in minute)")]
+        [SettingPropertyFloatingInteger("Other Battle", 0f, 60, "0.0 IRL Minute", Order = 10, RequireRestart = false, HintText = "How long 1 hour in game during uncategorized battle should last (in minute). 0 means disabled")]
         [SettingPropertyGroup("Time Settings/Combat", GroupOrder = 20)]
         public float DefaultCombatHourDuration{ get; set; } = 1;
 
-        [SettingPropertyFloatingInteger("Town", 1f, 60, "0.0 IRL Minute", Order = 0, RequireRestart = false, HintText = "How long 1 hour in game while inside town should last (in minute)")]
+        [SettingPropertyFloatingInteger("Town", 0f, 60, "0.0 IRL Minute", Order = 0, RequireRestart = false, HintText = "How long 1 hour in game while inside town should last (in minute). 0 means disabled")]
         [SettingPropertyGroup("Time Settings/Exploration", GroupOrder = 20)]
         public float TownHourDuration{ get; set; } = 1;
 
-        [SettingPropertyFloatingInteger("Village", 1f, 60, "0.0 IRL Minute", Order = 0, RequireRestart = false, HintText = "How long 1 hour in game while inside village should last (in minute)")]
+        [SettingPropertyFloatingInteger("Village", 0f, 60, "0.0 IRL Minute", Order = 0, RequireRestart = false, HintText = "How long 1 hour in game while inside village should last (in minute). 0 means disabled")]
         [SettingPropertyGroup("Time Settings/Exploration", GroupOrder = 20)]
         public float VillageDuration{ get; set; } = 1;
 
-        [SettingPropertyFloatingInteger("Indoor", 1f, 60, "0.0 IRL Minute", Order = 0, RequireRestart = false, HintText = "How long 1 hour in game while indoor should last (in minute)")]
+        [SettingPropertyFloatingInteger("Indoor", 0f, 60, "0.0 IRL Minute", Order = 0, RequireRestart = false, HintText = "How long 1 hour in game while indoor should last (in minute). 0 means disabled")]
         [SettingPropertyGroup("Time Settings/Exploration", GroupOrder = 20)]
         public float IndoorHourDuration{ get; set; } = 1;
 
-        [SettingPropertyFloatingInteger("Other", 1f, 60, "0.0 IRL Minute", Order = 10, RequireRestart = false, HintText = "How long 1 hour in game while indoor should last (in minute)")]
+        [SettingPropertyFloatingInteger("Other", 0f, 60, "0.0 IRL Minute", Order = 10, RequireRestart = false, HintText = "How long 1 hour in game while indoor should last (in minute). 0 means disabled")]
         [SettingPropertyGroup("Time Settings/Exploration", GroupOrder = 20)]
         public float DefaultHourDuration{ get; set; } = 1;
 

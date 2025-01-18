@@ -49,6 +49,7 @@ namespace TimePass
             expectedSkyTexture = "";
 
             currentLocation = GetCurrentLocation();
+            isTimeUpdatedThisFrame = false;
 
             InitUI();
         }
@@ -61,7 +62,13 @@ namespace TimePass
             {
                 
                 bool isCombat = Mission.PlayerEnemyTeam != null && Mission.PlayerEnemyTeam.ActiveAgents.Any();
-                float secondTick = dt * (60 / TimePassSettings.Instance.GetTimePassDuration(currentLocation,isCombat)); //TimePassSettings.Instance.RealSecondToWorldSecondRatio;
+                float timePassDuration = TimePassSettings.Instance.GetTimePassDuration(currentLocation, isCombat);
+                if (timePassDuration <= 0)
+                {
+                    isTimeUpdatedThisFrame = false;
+                    return;
+                }
+                float secondTick = dt * (60 / timePassDuration);
 
                 // tick campagin time
                 if (Campaign.Current != null)
@@ -94,7 +101,7 @@ namespace TimePass
         public override void OnMissionTick(float dt)
         {
             base.OnMissionTick(dt);
-            if (Mission != null && Mission.Scene != null && Mission.Scene.IsLoadingFinished() && TimePassSettings.Instance.EnableSkyUpdate  && Mission.Mode != MissionMode.Deployment)
+            if (isTimeUpdatedThisFrame && Mission != null && Mission.Scene != null && Mission.Scene.IsLoadingFinished() && TimePassSettings.Instance.EnableSkyUpdate  && Mission.Mode != MissionMode.Deployment)
             {
                 UpdateSkyTexture();
             }
@@ -365,6 +372,7 @@ namespace TimePass
 
         // cache
         private float skyTickTime;
+        private bool isTimeUpdatedThisFrame = false;
 
         private TimePassVM timePassVM;
         private TimePassLocationEnum currentLocation;
