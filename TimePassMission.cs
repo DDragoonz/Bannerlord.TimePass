@@ -57,8 +57,9 @@ namespace TimePass
         {
             base.OnPreMissionTick(dt);
 
-            if (Mission != null && Mission.Scene != null && Mission.Scene.IsLoadingFinished())
+            if (Mission != null && Mission.Scene != null && Mission.Scene.IsLoadingFinished() && Mission.Mode != MissionMode.Deployment)
             {
+                
                 bool isCombat = Mission.PlayerEnemyTeam != null && Mission.PlayerEnemyTeam.ActiveAgents.Any();
                 float secondTick = dt * (60 / TimePassSettings.Instance.GetTimePassDuration(currentLocation,isCombat)); //TimePassSettings.Instance.RealSecondToWorldSecondRatio;
 
@@ -93,7 +94,7 @@ namespace TimePass
         public override void OnMissionTick(float dt)
         {
             base.OnMissionTick(dt);
-            if (Mission != null && Mission.Scene != null && Mission.Scene.IsLoadingFinished() && TimePassSettings.Instance.EnableSkyUpdate)
+            if (Mission != null && Mission.Scene != null && Mission.Scene.IsLoadingFinished() && TimePassSettings.Instance.EnableSkyUpdate  && Mission.Mode != MissionMode.Deployment)
             {
                 UpdateSkyTexture();
             }
