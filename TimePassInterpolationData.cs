@@ -6,88 +6,99 @@ namespace TimePass
 {
     public class TimePassInterpolationData
     {
-        private readonly List<KeyValuePair<float, string>> data = new List<KeyValuePair<float, string>>();
+        private struct InterpolationData
+        {
+            public readonly float key;
+            public readonly string sValue;
+            public List<float> tangents;
 
-        public bool GetValueForTime(float time, out string valueA, out string valueB, out float alpha)
+            public InterpolationData(float key, string value)
+            {
+                this.key = key;
+                sValue = value;
+                tangents = new List<float>();
+            }
+            
+            public InterpolationData(float key, string value, float tangent)
+            {
+                this.key = key;
+                sValue = value;
+                tangents = new List<float> { tangent };
+            }
+
+            public float GetTangents(bool inTangent)
+            {
+                if (tangents.Count == 0)
+                {
+                    return 0;
+                }
+                return inTangent ? tangents[0] : tangents[tangents.Count - 1];
+            }
+        }
+
+        private readonly List<InterpolationData> data = new List<InterpolationData>();
+
+        public bool GetValueForTime(float time, out string valueA, out string valueB, out float alpha, out float tangentA, out float tangentB)
         {
             alpha = 1;
 
             for (int i = 0; i < data.Count; i++)
             {
-
                 if (i + 1 >= data.Count)
                 {
-                    valueA = data[i].Value;
-                    valueB = data[0].Value;
+                    valueA = data[i].sValue;
+                    valueB = data[0].sValue;
                     alpha = 1;
+                    tangentA = data[i].GetTangents(false);
+                    tangentB = data[0].GetTangents(true);
                     return true;
-                    break;
                 }
 
-                float currentTime = data[i].Key;
-                float nextTime = data[i + 1].Key;
+                float currentTime = data[i].key;
+                float nextTime = data[i + 1].key;
                 float expectedTime = time;
 
                 if (expectedTime >= currentTime && expectedTime < nextTime)
                 {
-                    valueA = data[i].Value;
-                    valueB = data[i + 1].Value;
+                    valueA = data[i].sValue;
+                    valueB = data[i + 1].sValue;
                     alpha = (time - currentTime) / (nextTime - currentTime);
-
+                    tangentA = data[i].GetTangents(false);
+                    tangentB = data[i + 1].GetTangents(true);
                     return true;
                 }
-
             }
+
             valueA = valueB = "";
+            tangentA = tangentB = 0;
             return false;
+        }
+
+        public bool GetValueForTime(float time, out string valueA, out string valueB, out float alpha)
+        {
+            return GetValueForTime(time, out valueA, out valueB, out alpha, out _, out _);
         }
 
         public string GetValue(float time)
         {
-            string valueA, valueB;
-            float alpha;
-            if (GetValueForTime(time, out valueA, out valueB, out alpha))
-            {
-                return valueA;
-            }
-
-            return "";
-        }
-
-        public float GetFloatValue(float time, out float alpha)
-        {
-            string valueA, valueB;
-            if (GetValueForTime(time, out valueA, out valueB, out alpha))
-            {
-                try
-                {
-                    float fValueA = float.Parse(valueA);
-                    float fValueB = float.Parse(valueB);
-                    return MathF.Lerp(fValueA, fValueB, alpha);
-                }
-                catch (Exception e)
-                {
-                    // parse failure
-                }
-
-
-            }
-            alpha = 0;
-            return 0;
-
+            return GetValueForTime(time, out string valueA, out string _, out float _, out float _, out float _) ? valueA : "";
         }
 
         public float GetFloatValue(float time)
         {
-            float alpha;
-            return GetFloatValue(time, out alpha);
+            if (GetValueForTime(time, out string valueA, out string valueB, out float alpha, out float tangentA, out float tangentB))
+            {
+                float.TryParse(valueA, out float fValueA);
+                float.TryParse(valueB, out float fValueB);
+                return TimePassDefaultSkyParamCalculator.HermiteEvaluate(fValueA, fValueB, tangentA, tangentB, alpha);
+            }
+
+            return 0;
         }
 
-        public Vec3 GetVec3Value(float time, out float alpha)
+        public Vec3 GetVec3Value(float time)
         {
-
-            string valueA, valueB;
-            if (GetValueForTime(time, out valueA, out valueB, out alpha))
+            if (GetValueForTime(time, out string valueA, out string valueB, out float alpha))
             {
                 try
                 {
@@ -104,40 +115,54 @@ namespace TimePass
                 {
                     //parse failure
                 }
-
             }
-            alpha = 0;
             return Vec3.Zero;
-
-        }
-
-        public Vec3 GetVec3Value(float time)
-        {
-            float alpha;
-            return GetVec3Value(time, out alpha);
         }
 
         public void AddData(float key, string value)
         {
-            // if (data == null) data = new List<KeyValuePair<float, string>>();
-
             for (int i = 0; i < data.Count; i++)
             {
-                if (key == data[i].Key)
+                if (Math.Abs(key - data[i].key) < 0.001f)
                 {
                     return;
                 }
 
-                if (key < data[i].Key)
+                if (key < data[i].key)
                 {
-                    data.Insert(i, new KeyValuePair<float, string>(key, value));
+                    data.Insert(i, new InterpolationData(key, value));
                     return;
                 }
             }
-            data.Add(new KeyValuePair<float, string>(key, value));
+
+            data.Add(new InterpolationData(key, value));
         }
+
+        public void AddData(float key, string value, string sTangent)
+        {
+            // if (data == null) data = new List<KeyValuePair<float, string>>();
+            
+            float.TryParse(sTangent, out float tangent);
+
+            for (int i = 0; i < data.Count; i++)
+            {
+                if (Math.Abs(key - data[i].key) < 0.001f)
+                {
+                    data[i].tangents.Add(tangent);
+                    return;
+                }
+
+                if (key < data[i].key)
+                {
+                    data.Insert(i, new InterpolationData(key,value));
+                    return;
+                }
+
+            }
+
+            data.Add(new InterpolationData(key, value, tangent));
+        }
+        
+        
     }
-
-
-
 }

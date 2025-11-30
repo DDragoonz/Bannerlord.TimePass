@@ -169,6 +169,53 @@ namespace TimePass
                 angle = 50f * seasonFactor;
             }
         }
+        
+        
+
+        public static float GetSunAltitude(float timeOfDay)
+        {
+            float timeAlpha = timeOfDay - (int)timeOfDay;
+            if (timeOfDay > 0 && timeOfDay <= 2.3f) return HermiteEvaluate(90.0f, 180.08f, -11.952f, 0.0f, timeOfDay / 2.3f);
+            if (timeOfDay > 2.3f && timeOfDay <= 3.0f) return HermiteEvaluate(0.08f, 1.5f, 0.0f, -0.398f, timeOfDay - 2.3f / 3.0f - 2.3f);
+            if (timeOfDay > 3.0f && timeOfDay <= 4.0f) return HermiteEvaluate(1.5f, 4.972f, 0.568f, -0.703f, timeAlpha);
+            if (timeOfDay > 4.0f && timeOfDay <= 5.0f) return HermiteEvaluate(4.972f, 9.108f, 0.703f, -0.791f, timeAlpha);
+            if (timeOfDay > 5.0f && timeOfDay <= 6.0f) return HermiteEvaluate(9.108f, 13.826f, 0.791f, -0.911f, timeAlpha);
+            if (timeOfDay > 6.0f && timeOfDay <= 7.0f) return HermiteEvaluate(13.826f, 20.0f, 0.911f, -1.486f, timeAlpha);
+            if (timeOfDay > 7.0f && timeOfDay <= 8.0f) return HermiteEvaluate(20.0f, 32.496f, 1.486f, -1.604f, timeAlpha);
+            if (timeOfDay > 8.0f && timeOfDay <= 9.0f) return HermiteEvaluate(32.496f, 46.082f, 1.604f, -1.604f, timeAlpha);
+            if (timeOfDay > 9.0f && timeOfDay <= 10.0f) return HermiteEvaluate(46.082f, 59.258f, 1.604f, -1.580f, timeAlpha);
+            if (timeOfDay > 10.0f && timeOfDay <= 11.0f) return HermiteEvaluate(59.258f, 72.0f, 1.580f, -1.532f, timeAlpha);
+            if (timeOfDay > 11.0f && timeOfDay <= 12.0f) return HermiteEvaluate(72.0f, 82.0f, 1.532f, 0.0f, timeAlpha);
+            if (timeOfDay > 12.0f && timeOfDay <= 13.0f) return HermiteEvaluate(82.0f, 180-72.0f, 0.0f, 0.792f, timeAlpha);
+            if (timeOfDay > 13.0f && timeOfDay <= 14.0f) return HermiteEvaluate(180-72.0f, 180-59.258f, -0.792f, 1.847f, timeAlpha);
+            if (timeOfDay > 14.0f && timeOfDay <= 15.0f) return HermiteEvaluate(180-59.258f, 180-45.895f, -1.847f, 1.979f, timeAlpha);
+            if (timeOfDay > 15.0f && timeOfDay <= 16.0f) return HermiteEvaluate(180-45.895f, 180-32.496f, -1.979f, 1.451f, timeAlpha);
+            if (timeOfDay > 16.0f && timeOfDay <= 17.0f) return HermiteEvaluate(180-32.496f, 180-20.0f, -1.451f, 2.111f, timeAlpha);
+            if (timeOfDay > 17.0f && timeOfDay <= 18.0f) return HermiteEvaluate(180-20.0f, 180-13.826f, -2.111f, 1.055f, timeAlpha);
+            if (timeOfDay > 18.0f && timeOfDay <= 19.0f) return HermiteEvaluate(180-13.826f, 180-9.108f, -1.055f, 0.792f, timeAlpha);
+            if (timeOfDay > 19.0f && timeOfDay <= 20.0f) return HermiteEvaluate(180-9.108f, 180-4.972f, -0.792f, 0.792f, timeAlpha);
+            if (timeOfDay > 20.0f && timeOfDay <= 21.0f) return HermiteEvaluate(180-4.972f, 180-1.5f, -0.792f, 0.463f, timeAlpha);
+            if (timeOfDay > 21.0f && timeOfDay <= 21.7f) return HermiteEvaluate(180-1.5f, 180, -0.324f, -0.086f, timeOfDay - 21.0f / 21.7f - 21.0f);
+            if (timeOfDay > 21.7f && timeOfDay <= 24.0f) return HermiteEvaluate(0, 90.0f, 0.0f, 0.0f, timeOfDay - 21.7f / 24.0f - 21.7f); 
+
+            return 0;
+        }
+        
+
+        
+        public static float HermiteEvaluate(float value1, float value2, float tangent1, float tangent2, float alpha)
+        {
+            float t = alpha;
+            float t2 = t * t;
+            float t3 = t2 * t;
+
+            float h00 = 2f * t3 - 3f * t2 + 1f;
+            float h10 = t3 - 2f * t2 + t;
+            float h01 = -2f * t3 + 3f * t2;
+            float h11 = t3 - t2;
+
+            return h00 * value1 + h10 * tangent1 + h01 * value2 + h11 * tangent2;
+        }
 
         public static float GetEnvironmentMultiplier(float altitude, float angle, bool sunIsMoon)
         {
@@ -206,5 +253,53 @@ namespace TimePass
 
             return num;
         }
+
+        public static float GetEnvironmentMultiplier(int currentTime, int initialTime)
+        {
+            if (initialTime >= 21 || initialTime <= 3)
+            {
+                return 1;
+            }
+            switch (currentTime)
+            {
+                case 0:
+                case 23:
+                    return 0.0001f;
+                case 1:
+                case 2:
+                case 22:
+                    return 0.005f;
+                case 3:
+                case 21:
+                    return 0.01f;
+                case 4:
+                case 20:
+                    return 0.05f;
+                case 5:
+                case 19:
+                    return 0.175f;
+                case 6:
+                case 18:
+                    return 0.2f;
+                case 7:
+                case 17:
+                    return 0.25f;
+                case 8:
+                case 16:
+                    return 0.3f;
+                case 9:
+                case 15:
+                    return 0.5f;
+                case 10:
+                case 14:
+                    return 0.8f;
+                case 11:
+                case 13:
+                    return 1;
+            }
+
+            return 1;
+        }
+
     }
 }

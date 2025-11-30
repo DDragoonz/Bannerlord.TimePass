@@ -3,13 +3,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Xml;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.Core;
 using TaleWorlds.Library;
+using TaleWorlds.MountAndBlade;
 using TaleWorlds.TwoDimension;
 
 namespace TimePass
 {
     public struct TimePassSkyInfo
     {
+        public string id;
         public int hour;
         public float sun_altitude;
         public float sun_angle;
@@ -32,11 +35,15 @@ namespace TimePass
         public float middle_gray;
         public string skybox_texture;
 
+        public bool IsValid()
+        {
+            return id != null;
+        }
+
         private TimePassSkyInfo(TimePassInterpolationDataCollection data, float currentTimeOfDay)
         {
 
             float normalizedHour = currentTimeOfDay % 24 / 24;
-            bool isSunMoon;
             float timeFactorForSnow = 1, timeFactorForRain = 1;
             if (Campaign.Current != null)
             {
@@ -45,21 +52,20 @@ namespace TimePass
                     out timeFactorForRain);
             }
 
-            // get sun position from this function is smoother than lerping between sky info
-            TimePassDefaultSkyParamCalculator.GetSunPosition(normalizedHour, timeFactorForSnow,
-                out sun_altitude, out sun_angle, out isSunMoon);
-
 
             float timeOfDayHundred = currentTimeOfDay * 10;
 
             data.colorgrade_texture.GetValueForTime(currentTimeOfDay * 10, out color_grade_name, out color_grade_name2, out color_grade_alpha);
 
             hour = (int)currentTimeOfDay;
+            id = "interpolated";
             sun_intesity = data.sun_intesity.GetFloatValue(timeOfDayHundred);
-            sky_brightness = data.sky_brightness.GetFloatValue(timeOfDayHundred);
+            sky_brightness = Mathf.Max(1f, data.sky_brightness.GetFloatValue(timeOfDayHundred));
             sun_size = data.sun_size.GetFloatValue(timeOfDayHundred);
             sunshafts_strength = data.sun_shafts_intesity.GetFloatValue(timeOfDayHundred);
             sun_color = data.sun_color.GetVec3Value(normalizedHour);
+            sun_altitude = data.sun_altitude.GetFloatValue(timeOfDayHundred);
+            sun_angle = data.sun_angle.GetFloatValue(timeOfDayHundred);
             middle_gray = data.middle_grey.GetFloatValue(timeOfDayHundred);
             brightpass_threshold = data.brightpass_exposure.GetFloatValue(timeOfDayHundred);
             fog_ambient_color = data.global_ambient_color.GetVec3Value(normalizedHour);
@@ -67,7 +73,6 @@ namespace TimePass
             fog_density = data.fog_density.GetFloatValue(timeOfDayHundred);
             fog_falloff = data.fog_falloff.GetFloatValue(timeOfDayHundred);
             skybox_texture = data.skybox_texture.GetValue(timeOfDayHundred);
-
             max_exposure = data.max_exposure.GetFloatValue(timeOfDayHundred);
             min_exposure = data.min_exposure.GetFloatValue(timeOfDayHundred);
             target_exposure = data.target_exposure.GetFloatValue(timeOfDayHundred);
@@ -79,8 +84,7 @@ namespace TimePass
             switch (varName)
             {
                 case "sun_altitude":
-                    // add 90 altitude past mid day time
-                    sun_altitude = float.Parse(value) + (hour > 12 ? 90 : 0);
+                    sun_altitude = /*(hour > 12 && hour < 21) || (hour >= 0 && hour < 2) ? 180 - float.Parse(value) : */float.Parse(value);
                     break;
                 case "sun_angle":
                     sun_angle = float.Parse(value);
@@ -145,7 +149,7 @@ namespace TimePass
         public override string ToString()
         {
             string output = "";
-            output += "time : " + TimeOfDay;
+            output += "id : " + id + " (" + hour + ")";
             if (TimePassSettings.Instance.UpdateColorGrade) output += "\n color_grade_name : " + color_grade_name;
             if (TimePassSettings.Instance.UpdateSkybox) output += "\n skybox_texture : " + skybox_texture;
             if (TimePassSettings.Instance.UpdateSkyBrightness) output += "\n sky_brightness : " + sky_brightness;
@@ -170,40 +174,18 @@ namespace TimePass
 
         }
 
-        public static void Init(float timeOfDay, bool isBadWeather, string interpAtmosphere = null)
-        {
-            TimeOfDay = timeOfDay;
-
-            if (interpAtmosphere != null)
-            {
-                TimePassInterpolationDataCollection data = TimePassInterpolationDataCollection.GetInterpolationData(interpAtmosphere);
-                if (data != null)
-                {
-                    initialSkyInfo = new TimePassSkyInfo(data, timeOfDay);
-                    return;
-                }
-
-            }
-
-            int atmosphereHour = ClampAtmosphereHour((int)timeOfDay);
-            string atmosphereName = GetAtmosphereName(atmosphereHour, isBadWeather);
-            initialSkyInfo = GetOrReadSkyInfo((int)timeOfDay, atmosphereName);
-
-        }
-
 
         public static TimePassSkyInfo Lerp(TimePassSkyInfo fromSkyInfo, TimePassSkyInfo toSkyInfo, float hourProgress)
         {
-            float lerpedSunsize = Mathf.Lerp(fromSkyInfo.sun_size, toSkyInfo.sun_size, hourProgress);
-            float clampedSunSize = lerpedSunsize < 0.05f ? 0.05f : lerpedSunsize;
+            // float lerpedSunsize = Mathf.Lerp(fromSkyInfo.sun_size, toSkyInfo.sun_size, hourProgress);
+            // float clampedSunSize = lerpedSunsize < 0.05f ? 0.05f : lerpedSunsize;
             TimePassSkyInfo skyInfo = new TimePassSkyInfo
             {
                 sky_brightness = Mathf.Lerp(fromSkyInfo.sky_brightness, toSkyInfo.sky_brightness, hourProgress),
-                sun_altitude = Mathf.Lerp(fromSkyInfo.sun_altitude, toSkyInfo.sun_altitude,
-                    hourProgress),
+                sun_altitude = Mathf.Lerp(fromSkyInfo.sun_altitude, toSkyInfo.sun_altitude, hourProgress),
                 sun_angle = Mathf.Lerp(fromSkyInfo.sun_angle, toSkyInfo.sun_angle, hourProgress),
                 sun_intesity = Mathf.Lerp(fromSkyInfo.sun_intesity, toSkyInfo.sun_intesity, hourProgress),
-                sun_size = Mathf.Lerp(fromSkyInfo.sun_size, toSkyInfo.sun_size, hourProgress),
+                sun_size = fromSkyInfo.sun_size, //Mathf.Lerp(fromSkyInfo.sun_size, toSkyInfo.sun_size, hourProgress),
                 sunshafts_strength = Mathf.Lerp(fromSkyInfo.sunshafts_strength, toSkyInfo.sunshafts_strength,
                     hourProgress),
                 sun_color = Vec3.Lerp(fromSkyInfo.sun_color, toSkyInfo.sun_color, hourProgress),
@@ -220,94 +202,15 @@ namespace TimePass
                 fog_density = Mathf.Lerp(fromSkyInfo.fog_density, toSkyInfo.fog_density, hourProgress),
                 fog_falloff = Mathf.Lerp(fromSkyInfo.fog_falloff, toSkyInfo.fog_falloff, hourProgress),
                 middle_gray = Mathf.Lerp(fromSkyInfo.middle_gray, toSkyInfo.middle_gray, hourProgress),
-                skybox_texture = toSkyInfo.skybox_texture
-
+                skybox_texture = fromSkyInfo.skybox_texture
             };
 
             return skyInfo;
         }
-
-        public static string GetAtmosphereName(int hour, bool isBadWeather)
-        {
-            hour = ClampAtmosphereHour(hour);
-            string suffix = "_00_SemiCloudy";
-
-            // only use overcast atmosphere when hour not 1.
-            // there are TOD_01_00_HeavyRain, but it's unfortunately it could be too dark to be playable.
-            if (isBadWeather && hour != 1)
-            {
-                suffix = "_00_Overcast";
-            }
-
-            return "TOD_" + hour.ToString("00") + suffix;
-
-        }
-
-        // this is used to get atmosphere file
-        public static int ClampAtmosphereHour(int hour)
-        {
-            if (hour > 24)
-            {
-                hour %= 24;
-            }
-
-            if (hour > 12)
-            {
-                hour = 12 - (hour - 12);
-            }
-
-            if (hour == 0)
-            {
-                hour = 1;
-            }
-
-            return hour;
-        }
-
-        public static int GetUnclampedAtmosphereHour(int currentHour, bool isBadWeather)
-        {
-
-            if (isBadWeather)
-            {
-                if (currentHour < 6) return 1;
-                if (currentHour < 8) return 6;
-                if (currentHour < 12) return 8;
-                if (currentHour < 16) return 12;
-                if (currentHour < 18) return 16;
-                if (currentHour < 23) return 18;
-            }
-
-            return currentHour;
-        }
-
-        // get next hour where atmosphere will change
-        public static int GetUnclampedNextAtmosphereHour(int currentHour, bool isBadWeather)
-        {
-            if (currentHour == 23)
-            {
-                return 1;
-            }
-
-            if (isBadWeather)
-            {
-                if (currentHour < 1) return 1;
-                if (currentHour < 6) return 6;
-                if (currentHour < 8) return 8;
-                if (currentHour < 12) return 12;
-                if (currentHour < 16) return 16;
-                if (currentHour < 18) return 18;
-                if (currentHour < 23) return 23;
-            }
-
-            return currentHour + 1;
-
-        }
-
-
+        
         public static TimePassSkyInfo GetOrReadSkyInfo(int currentHour, string atmosphereName)
         {
             TimePassSkyInfo result = new TimePassSkyInfo();
-            result.hour = currentHour;
             try
             {
                 if (skyInfoCache.TryGetValue(atmosphereName, out result))
@@ -315,7 +218,7 @@ namespace TimePass
                     return result;
                 }
 
-                string path = Path.Combine(BasePath.Name, "Modules", "Native", "Atmospheres", atmosphereName + ".xml");
+                string path = Path.Combine(BasePath.Name, "Modules", atmosphereName.Contains("naval") ? "NavalDLC" : "Native", "Atmospheres", atmosphereName + ".xml");
 
                 using (XmlReader xmlReader = XmlReader.Create(path))
                 {
@@ -343,12 +246,14 @@ namespace TimePass
                         }
                     }
 
-
+                    result.hour = currentHour;
+                    result.id = atmosphereName;
                     skyInfoCache.Add(atmosphereName, result);
                 }
             }
             catch (Exception e)
             {
+                result.id = null;
                 if (TimePassSettings.Instance.EnableDebug)
                 {
                     InformationManager.DisplayMessage(new InformationMessage(
@@ -360,88 +265,319 @@ namespace TimePass
             return result;
         }
 
-        public static TimePassSkyInfo GetTargetSkyInfo(float timeOfDay, bool isBadWeather, string interpAtmosphere = null)
+        // 
+        public bool UpdateSkyInfo(float timeOfDay, bool isBadWeather, string interpAtmosphere, bool isNaval)
         {
-
-            if (TimePassSettings.Instance.UsePerCultureAtmosphereSettings && interpAtmosphere != null)
+            int currentHour = (int)timeOfDay;
+            if (currentHour == hour)
             {
-                TimePassInterpolationDataCollection data =
-                    TimePassInterpolationDataCollection.GetInterpolationData(interpAtmosphere);
+                return false; // do not update if same hour
+            }
 
-                if (data != null)
+            if (hour == currentHour)
+            {
+                return false;
+            }
+            
+            string presetAtmosphereName = GetPresetAtmosphereName(id, currentHour, isBadWeather, isNaval);
+            if (TimePassSettings.Instance.IncludeCultureInterpolatedAtmosphere && interpAtmosphere != null && (presetAtmosphereName == null || MBRandom.RandomFloat < 0.5f))
+            {
+                TimePassInterpolationDataCollection interpolatedAtmosphere = TimePassInterpolationDataCollection.GetInterpolationData(interpAtmosphere);
+                if (interpolatedAtmosphere != null)
                 {
-                    return new TimePassSkyInfo(data, timeOfDay);
+                    this = new TimePassSkyInfo(interpolatedAtmosphere, timeOfDay);
+                    return true;
                 }
             }
-
-            // if there is no interpolation data, interpolate using preset TOD_Atmosphere
-            float normalizedHour = timeOfDay % 24 / 24;
-            bool isSunMoon;
-            float timeFactorForSnow = 1, timeFactorForRain = 1;
-            float sun_altitude, sun_angle;
-            if (Campaign.Current != null)
+            
+            // if resulting same id, only update the hour
+            if (presetAtmosphereName == id || presetAtmosphereName == null)
             {
-                TimePassDefaultSkyParamCalculator.GetSeasonTimeFactorOfCampaignTime(CampaignTime.Now,
-                    out timeFactorForSnow,
-                    out timeFactorForRain);
+                hour = currentHour;
+                return false;
             }
 
-            // get sun position from this function is smoother than lerping between sky info
-            TimePassDefaultSkyParamCalculator.GetSunPosition(normalizedHour, timeFactorForSnow,
-                out sun_altitude, out sun_angle, out isSunMoon);
+            this = GetOrReadSkyInfo(currentHour, presetAtmosphereName);
+            hour = currentHour;
+            return IsValid();
 
+        }
 
-            int currentHour = (int)timeOfDay;
-            int unclampedAtmosphereHour = GetUnclampedAtmosphereHour(currentHour, isBadWeather);
-            int atmosphereHour = ClampAtmosphereHour(unclampedAtmosphereHour);
-
-            // update whole atmosphere once in an hour
-            string atmosphereName = GetAtmosphereName(atmosphereHour, isBadWeather);
-            TimePassSkyInfo skyInfo = GetOrReadSkyInfo(currentHour, atmosphereName);
-
-
-            // lerp sun position every tick
-            int unclampedNextAtmosphereHour = GetUnclampedNextAtmosphereHour(currentHour, isBadWeather);
-            int nextAtmosphereHour = ClampAtmosphereHour(unclampedNextAtmosphereHour);
-            int timeDiff = Math.Abs(unclampedNextAtmosphereHour - unclampedAtmosphereHour);
-            float hourProgress = TimeOfDay - unclampedAtmosphereHour;
-            // if atmosphere changed
-            if (timeDiff > 0)
+        private static string GetPresetAtmosphereName(string currentAtmosphere, int timeOfDay, bool isBadWeather, bool isNaval)
+        {
+            List<string> nameCandidates = new List<string>();
+            
+            if (TimePassSettings.Instance.IncludeOldPresetAtmosphere && (!isNaval || TimePassSettings.Instance.IncludeDefaultPresetAtmosphereInNaval))
             {
-                hourProgress /= timeDiff;
+                switch (timeOfDay)
+                {
+                    case 0:
+                    case 1:
+                    case 23:
+                        
+                        if (isBadWeather) nameCandidates.Add("TOD_01_00_HeavyRain");
+                        else nameCandidates.Add("TOD_01_00_SemiCloudy"); 
+                        break;
+                    case 2:
+                    case 22:
+                        nameCandidates.Add("TOD_02_00_SemiCloudy");
+                        break;
+                    case 3:
+                    case 21:
+                        nameCandidates.Add("TOD_03_00_SemiCloudy");
+                        break;
+                    case 4:
+                    case 20:
+                        nameCandidates.Add("TOD_04_00_SemiCloudy");
+                        break;
+                    case 5:
+                    case 19:
+                        nameCandidates.Add("TOD_05_00_SemiCloudy");
+                        break;
+                    case 6:
+                    case 18:
+                        if (isBadWeather) nameCandidates.Add("TOD_06_00_Overcast");
+                        else
+                        {
+                            nameCandidates.Add("TOD_06_00_Foggy");
+                            nameCandidates.Add("TOD_06_00_SemiCloudy");
+                        }
+                        break;
+                    case 7:
+                    case 17:
+                        nameCandidates.Add("TOD_07_00_SemiCloudy");
+                        break;
+                    case 8:
+                    case 16:
+                        nameCandidates.Add("TOD_08_00_Overcast");
+                        nameCandidates.Add("TOD_08_00_SemiCloudy");
+                        break;
+                    case 9:
+                    case 15:
+                        nameCandidates.Add("TOD_09_00_SemiCloudy");
+                        break;
+                    case 10:
+                    case 14:
+                        nameCandidates.Add("TOD_10_00_SemiCloudy");
+                        break;
+                    case 11:
+                    case 13:
+                        nameCandidates.Add("TOD_11_00_SemiCloudy");
+                        break;
+                    case 12:
+                        
+                        if (isBadWeather) nameCandidates.Add("TOD_12_00_Overcast");
+                        else nameCandidates.Add("TOD_12_00_SemiCloudy");
+                        
+                        break;
+                }
+            }
+            if (TimePassSettings.Instance.IncludeNewPresetAtmosphere && (!isNaval || TimePassSettings.Instance.IncludeDefaultPresetAtmosphereInNaval))
+            {
+                switch (timeOfDay)
+                {
+                    case 4:
+                        nameCandidates.Add("TOD_photo_04_00_dawn");
+                        break;
+                    case 5:
+                        nameCandidates.Add("TOD_photo_05_00_sunset");
+                        nameCandidates.Add("TOD_photo_05_00_sunset2");
+                        break;
+                    case 6:
+                        nameCandidates.Add("TOD_photo_06_00_sunset");
+                        nameCandidates.Add("TOD_photo_06_00_Cloudy");
+                        nameCandidates.Add("TOD_photo_06_00_Foggy");
+                        break;
+                    case 7:
+                    case 17:
+                        if (isBadWeather) nameCandidates.Add("TOD_photo_07_00_Overcast");
+                        else
+                        {
+                            nameCandidates.Add("TOD_photo_07_00_sunset2");
+                            nameCandidates.Add("TOD_photo_07_00_Cloudy");
+                        }
+                        break;
+                    case 8:
+                    case 16:
+                        if (isBadWeather) nameCandidates.Add("TOD_photo_08_00_rain_storm");
+                        else
+                        {
+                            nameCandidates.Add("TOD_photo_08_00_Cloudy");
+                            nameCandidates.Add("TOD_photo_08_00_Cloudy2");
+                            nameCandidates.Add("TOD_photo_08_00_Overcast");
+                        }
+                        break;
+                    case 9:
+                    case 15:
+                        if (isBadWeather) nameCandidates.Add("TOD_photo_09_00_Overcast");
+                        else {
+                            nameCandidates.Add("TOD_photo_09_00_Cloudy");
+                            nameCandidates.Add("TOD_photo_09_00_Cloudy2");
+                        }
+                        
+                        break;
+                    case 10:
+                    case 14:
+                        
+                        if (isBadWeather) nameCandidates.Add("TOD_photo_10_00_rain_storm");
+                        else
+                        {
+                            nameCandidates.Add("TOD_photo_10_00_Cloudy");
+                            nameCandidates.Add("TOD_photo_10_00_SemiCloudy");
+                            nameCandidates.Add("TOD_photo_10_00_semi_cloudy");
+                        }
+                        break;
+                    case 11:
+                    case 12:
+                    case 13:
+                        if (isBadWeather) nameCandidates.Add("TOD_photo_11_00_overcast");
+                        else
+                        {
+                            nameCandidates.Add("TOD_photo_11_00_Cloudy"); 
+                            nameCandidates.Add("TOD_photo_11_00_SemiCloudy");
+                        }
+                        
+                        break;
+                    case 18:
+                    case 19:
+                        nameCandidates.Add("TOD_photo_06_00_Cloudy");
+                        nameCandidates.Add("TOD_photo_06_00_Foggy");
+                        break;
+                    case 3:
+                    case 21:
+                        nameCandidates.Add("TOD_03_00_SemiCloudy");
+                        break;
+                    case 20:
+                        nameCandidates.Add("TOD_04_00_SemiCloudy");
+                        break;
+                    case 22:
+                    case 2:
+                        nameCandidates.Add("TOD_02_00_SemiCloudy");
+                        break;
+                    case 23:
+                    case 0:
+                    case 1:
+                        nameCandidates.Add("TOD_photo_04_00_night");
+                        break;
+                }
+            }
+            
+            string path = Path.Combine(BasePath.Name, "Modules", "NavalDLC", "Atmospheres");
+            if (Directory.Exists(path) && (isNaval || TimePassSettings.Instance.IncludeNavalPresetAtmosphereInDefault))
+            {
+                switch (timeOfDay)
+                {
+                    case 0:
+                    case 1:
+                    case 23:
+                        nameCandidates.Add("TOD_naval_01_00_SemiCloudy");
+                        break;
+                    case 2:
+                        nameCandidates.Add("TOD_naval_02_00_SemiCloudy");
+                        break;
+                    case 22:
+                    case 21:
+                        nameCandidates.Add("TOD_naval_02_30_night");
+                        break;
+                    case 3:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_08_00_rain_storm");
+                        else nameCandidates.Add("TOD_naval_03_00_sunset");
+                        break;
+                    case 4:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_08_00_rain_storm");
+                        else nameCandidates.Add("TOD_naval_04_00_Cloudy");
+                        break;
+                    case 20:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_08_00_rain_storm");
+                        else nameCandidates.Add("TOD_naval_04_30_Cloudy");
+                        break;
+                    case 5:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_08_00_rain_storm");
+                        else
+                        {
+                            nameCandidates.Add("TOD_naval_05_00_sunset");
+                            nameCandidates.Add("TOD_naval_05_30_sunset");
+                        }
+
+                        break;
+                    case 19:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_08_00_rain_storm");
+                        else nameCandidates.Add("TOD_naval_05_30_Cloudy");
+                        break;
+                    case 6:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_08_00_rain_storm");
+                        else
+                        {
+                            nameCandidates.Add("TOD_naval_06_00_sunset");
+                            nameCandidates.Add("TOD_naval_06_30_sunset");
+                        }
+
+                        break;
+                    case 18:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_08_00_rain_storm");
+                        else
+                        {
+                            nameCandidates.Add("TOD_naval_06_00_Cloudy");
+                            nameCandidates.Add("TOD_naval_06_00_Foggy");
+                        }
+                        break;
+                    case 7:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_08_00_rain_storm");
+                        else nameCandidates.Add("TOD_naval_07_00_Cloudy");
+                        break;
+                    case 17:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_08_00_rain_storm");
+                        else nameCandidates.Add("TOD_naval_07_00_sunset2");
+                        break;
+                    case 8:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_08_00_rain_storm");
+                        else
+                        {
+                            nameCandidates.Add("TOD_naval_08_00_Cloudy2");
+                            nameCandidates.Add("TOD_naval_08_00_Overcast");   
+                        }
+                        break;
+                    case 16:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_08_00_rain_storm");
+                        else nameCandidates.Add("TOD_naval_08_00_Cloudy");
+                        break;
+                    case 9:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_09_00_Overcast");
+                        else nameCandidates.Add("TOD_naval_09_00_Cloudy2"); 
+                        break;
+                    case 15:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_09_00_Overcast");
+                        else nameCandidates.Add("TOD_naval_09_00_Cloudy");
+                        break;
+                    case 10:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_10_00_rain_storm");
+                        else nameCandidates.Add("TOD_naval_10_00_SemiCloudy");
+                        break;
+                    case 14:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_10_00_rain_storm");
+                        else nameCandidates.Add("TOD_naval_10_00_Cloudy");
+                        break;
+                    case 11:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_11_00_Overcast");
+                        else nameCandidates.Add("TOD_naval_11_00_Cloudy");
+                        break;
+                    case 13:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_11_00_Overcast");
+                        else nameCandidates.Add("TOD_naval_11_00_SemiCloudy");
+                        break;
+                    case 12:
+                        if (isBadWeather) nameCandidates.Add("TOD_naval_11_00_Overcast");
+                        else nameCandidates.Add("TOD_naval_12_00_SemiCloudy");
+                        break;
+                }
+                
             }
 
-            string nextAtmosphereName = GetAtmosphereName(nextAtmosphereHour, isBadWeather);
-            TimePassSkyInfo nextSkyInfo = GetOrReadSkyInfo(unclampedNextAtmosphereHour, nextAtmosphereName);
-            TimePassSkyInfo result = Lerp(skyInfo, nextSkyInfo, hourProgress);
-            result.sun_altitude = sun_altitude;
-            result.sun_angle = sun_angle;
-
-            return result;
-
+            nameCandidates.Remove(currentAtmosphere);
+            return nameCandidates.Count == 0 ? null : nameCandidates.GetRandomElement();
         }
-
-        public void ClampTo(TimePassSkyInfo timePassSkyInfo)
-        {
-            float minSkyBrightness = Mathf.Min(timePassSkyInfo.sky_brightness, TimePassSettings.Instance.MinimumSkyBrightness);
-
-            sky_brightness = Mathf.Max(minSkyBrightness, sky_brightness);
-            min_exposure = Mathf.Min(timePassSkyInfo.min_exposure, min_exposure);
-            target_exposure = Mathf.Min(timePassSkyInfo.target_exposure, target_exposure);
-        }
-
-        public void ClampToInitialSkyInfo()
-        {
-            ClampTo(initialSkyInfo);
-        }
-
 
         private static readonly Dictionary<string, TimePassSkyInfo> skyInfoCache = new Dictionary<string, TimePassSkyInfo>();
-        private static TimePassSkyInfo initialSkyInfo;
-
-        public static float TimeOfDay;
-
-
 
     }
 }

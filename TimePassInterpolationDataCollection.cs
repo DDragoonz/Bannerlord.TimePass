@@ -21,9 +21,12 @@ namespace TimePass
         public TimePassInterpolationData min_exposure = new TimePassInterpolationData();
         public TimePassInterpolationData target_exposure = new TimePassInterpolationData();
         public TimePassInterpolationData sky_brightness = new TimePassInterpolationData();
+        public TimePassInterpolationData skybox_rotation = new TimePassInterpolationData();
         public TimePassInterpolationData sun_intesity = new TimePassInterpolationData();
         public TimePassInterpolationData sun_shafts_intesity = new TimePassInterpolationData();
         public TimePassInterpolationData sun_size = new TimePassInterpolationData();
+        public TimePassInterpolationData sun_altitude = new TimePassInterpolationData();
+        public TimePassInterpolationData sun_angle = new TimePassInterpolationData();
 
         #endregion
 
@@ -75,6 +78,12 @@ namespace TimePass
                 case "sun_shafts_intesity":
                     data = sun_shafts_intesity;
                     break;
+                case "sun_altitude":
+                    data = sun_altitude;
+                    break;
+                case "sun_angle":
+                    data = sun_angle;
+                    break;
                 case "sun_color":
                     data = sun_color;
                     break;
@@ -89,6 +98,9 @@ namespace TimePass
                     break;
                 case "skybox_texture":
                     data = skybox_texture;
+                    break;
+                case "skybox_rotation":
+                    data = skybox_rotation;
                     break;
                 case "colorgrade_texture":
                     data = colorgrade_texture;
@@ -134,18 +146,28 @@ namespace TimePass
                             xmlReader.ReadToFollowing("key_frame");
                             do
                             {
+                                // move to "frame"
                                 if (!xmlReader.MoveToFirstAttribute())
                                 {
                                     continue;
                                 }
-
+                                
+                                // get the value of "frame" this should be 0, 10, 20... etc
                                 float key = float.Parse(xmlReader.Value);
+                                // move to next attribute ("value")
                                 if (!xmlReader.MoveToNextAttribute())
                                 {
                                     continue;
                                 }
 
-                                data.AddData(key, xmlReader.Value);
+                                string sValue = xmlReader.Value;
+                                string sTangent = "";
+                                if (xmlReader.MoveToNextAttribute())
+                                {
+                                    sTangent = xmlReader.Value;
+                                }
+                                
+                                data.AddData(key, sValue, sTangent);
                                 xmlReader.MoveToElement();
                             } while (xmlReader.ReadToNextSibling("key_frame"));
 
@@ -189,13 +211,9 @@ namespace TimePass
                             data.AddData(key, xmlReader.Value);
                             xmlReader.MoveToElement();
                         } while (xmlReader.ReadToNextSibling("key"));
-
-
-
-
+                        
                     }
-
-
+                    
                     InterpolationDataCache.Add(name, result);
                     return result;
                 }

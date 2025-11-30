@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace TimePass
+﻿namespace TimePass
 {
     public enum TimePassLocationEnum
     {
@@ -9,9 +7,11 @@ namespace TimePass
         Hideout,
         Village,
         Town,
+        Stealth,
         Siege,
+        SallyOut,
+        Naval,
         Indoor,
         Other,
     }
-    
 }

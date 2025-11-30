@@ -9,7 +9,7 @@ namespace TimePass
         {
             get
             {
-                float currentTimeOfDay = TimePassSkyInfo.TimeOfDay;
+                float currentTimeOfDay = TimeOfDay;
                 int hour = (int)currentTimeOfDay;
                 float hourFraction = currentTimeOfDay - hour;
                 int minute = (int)(60 * hourFraction);
@@ -32,5 +32,6 @@ namespace TimePass
             {
             }
         }
+        public float TimeOfDay { get; set; }
     }
 }
